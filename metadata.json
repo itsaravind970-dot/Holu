@@ -1,0 +1,8 @@
+{
+  "name": "Gemini Ultimate Chatbot",
+  "description": "A world-class AI chatbot featuring text chat, image analysis, search grounding, and text-to-speech capabilities using the latest Gemini models.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
