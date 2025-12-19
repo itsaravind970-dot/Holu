@@ -1,5 +1,6 @@
 
 export type Role = 'user' | 'model';
+export type HuluMode = 'normal' | 'pro';
 
 export interface MessagePart {
   text?: string;
@@ -14,13 +15,12 @@ export interface ChatMessage {
   role: Role;
   parts: MessagePart[];
   timestamp: number;
-  isAudio?: boolean;
+  isStarred?: boolean;
+  isMediaGeneration?: boolean;
+  mediaType?: 'image' | 'video';
+  mediaUrl?: string;
   groundingSources?: Array<{
     web?: {
-      uri: string;
-      title: string;
-    };
-    maps?: {
       uri: string;
       title: string;
     };
@@ -32,4 +32,13 @@ export interface ChatSessionHistory {
   title: string;
   messages: ChatMessage[];
   updatedAt: number;
+}
+
+export interface SavedProjectItem {
+  id: string;
+  type: 'code' | 'topic';
+  content: string;
+  language?: string;
+  timestamp: number;
+  title: string;
 }

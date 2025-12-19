@@ -1,6 +1,6 @@
 {
-  "name": "Gemini Ultimate Chatbot",
-  "description": "A world-class AI chatbot featuring text chat, image analysis, search grounding, and text-to-speech capabilities using the latest Gemini models.",
+  "name": "HULU AI",
+  "description": "Premium intelligence platform featuring Normal and Pro modes with integrated Projects and History Search.",
   "requestFramePermissions": [
     "camera",
     "microphone"

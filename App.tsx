@@ -1,330 +1,513 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { ChatMessage as ChatMessageType, ChatSessionHistory } from './types';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { ChatMessage as ChatMessageType, ChatSessionHistory, HuluMode, SavedProjectItem } from './types';
 import { geminiService, decodeAudioData } from './services/geminiService';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
-import { MessageSquare, Plus, PanelLeft, Search, Settings, Trash2, Bot, Info, ShieldCheck, Zap } from 'lucide-react';
+import { 
+  MessageSquare, Plus, Search, Terminal, Star, 
+  Menu, X, Sparkles, User, AlertTriangle, Loader2, Cpu, History, BookMarked, Copy, Trash2, ArrowLeft
+} from 'lucide-react';
 
 const App: React.FC = () => {
   const [sessions, setSessions] = useState<ChatSessionHistory[]>([]);
+  const [projects, setProjects] = useState<SavedProjectItem[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Closed by default
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [view, setView] = useState<'chats' | 'projects'>('chats');
+  const [searchQuery, setSearchQuery] = useState('');
   
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [audioLoadingId, setAudioLoadingId] = useState<string | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const currentAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem('gemini_chat_sessions');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setSessions(parsed);
-      if (parsed.length > 0) {
-        setCurrentSessionId(parsed[0].id);
-      }
-    }
+    const savedSessions = localStorage.getItem('hulu_sessions');
+    const savedProjects = localStorage.getItem('hulu_projects');
+    if (savedSessions) setSessions(JSON.parse(savedSessions));
+    if (savedProjects) setProjects(JSON.parse(savedProjects));
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('gemini_chat_sessions', JSON.stringify(sessions));
-  }, [sessions]);
+    localStorage.setItem('hulu_sessions', JSON.stringify(sessions));
+    localStorage.setItem('hulu_projects', JSON.stringify(projects));
+  }, [sessions, projects]);
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({
+          top: scrollRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 100);
     }
-  }, [sessions, currentSessionId]);
+  }, [sessions, currentSessionId, isLoading, selectedProjectId]);
 
-  const createNewSession = () => {
+  const filteredSessions = useMemo(() => {
+    if (!searchQuery) return sessions;
+    return sessions.filter(s => 
+      s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.messages.some(m => m.parts[0].text?.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+  }, [sessions, searchQuery]);
+
+  const filteredProjects = useMemo(() => {
+    if (!searchQuery) return projects;
+    return projects.filter(p => 
+      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.content.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [projects, searchQuery]);
+
+  const ensureActiveSession = (title: string): string => {
+    if (currentSessionId) return currentSessionId;
     const newSession: ChatSessionHistory = {
       id: Date.now().toString(),
-      title: 'New Chat',
+      title: title.slice(0, 30),
       messages: [],
       updatedAt: Date.now()
     };
     setSessions(prev => [newSession, ...prev]);
     setCurrentSessionId(newSession.id);
-    setIsSidebarOpen(false); // Close sidebar on mobile after creating chat
+    return newSession.id;
   };
 
-  const deleteSession = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const filtered = sessions.filter(s => s.id !== id);
-    setSessions(filtered);
-    if (currentSessionId === id) {
-      setCurrentSessionId(filtered.length > 0 ? filtered[0].id : null);
-    }
-  };
-
-  const currentSession = sessions.find(s => s.id === currentSessionId);
-
-  const handleSendMessage = async (text: string, isDeep: boolean, image?: { data: string; mimeType: string }) => {
-    let activeId = currentSessionId;
-    
-    // Create session if none active
-    if (!activeId) {
-      const newSession: ChatSessionHistory = {
-        id: Date.now().toString(),
-        title: text.slice(0, 30) || 'Image Analysis',
-        messages: [],
-        updatedAt: Date.now()
-      };
-      setSessions(prev => [newSession, ...prev]);
-      setCurrentSessionId(newSession.id);
-      activeId = newSession.id;
+  const handleSendMessage = async (text: string, mode: HuluMode) => {
+    // Detect image generation intent automatically
+    const imgIntents = ['generate image', 'create image', 'draw', 'make a picture', 'show me an image'];
+    if (imgIntents.some(intent => text.toLowerCase().startsWith(intent))) {
+      const prompt = text.replace(new RegExp(`^(${imgIntents.join('|')})`, 'i'), '').trim();
+      if (prompt) {
+        handleGenerateImage(prompt);
+        return;
+      }
     }
 
-    const userMessage: ChatMessageType = {
+    setSelectedProjectId(null);
+    const activeId = ensureActiveSession(text);
+
+    const userMsg: ChatMessageType = {
       id: Date.now().toString(),
       role: 'user',
-      parts: [
-        { text },
-        ...(image ? [{ inlineData: { data: image.data, mimeType: image.mimeType } }] : [])
-      ],
+      parts: [{ text }],
       timestamp: Date.now()
     };
 
-    setSessions(prev => prev.map(s => {
-      if (s.id === activeId) {
-        return {
-          ...s,
-          title: s.messages.length === 0 ? text.slice(0, 30) : s.title,
-          messages: [...s.messages, userMessage],
-          updatedAt: Date.now()
-        };
-      }
-      return s;
-    }));
+    setSessions(prev => prev.map(s => s.id === activeId ? {
+      ...s,
+      messages: [...s.messages, userMsg],
+      updatedAt: Date.now()
+    } : s));
 
     setIsLoading(true);
 
     try {
       const response = await geminiService.chatWithHistory(
-        currentSession?.messages || [],
+        sessions.find(s => s.id === activeId)?.messages || [],
         text,
-        isDeep,
-        image
+        mode
       );
 
-      const botMessage: ChatMessageType = {
+      const botMsg: ChatMessageType = {
         id: (Date.now() + 1).toString(),
         role: 'model',
         parts: [{ text: response.text }],
-        timestamp: Date.now(),
-        groundingSources: response.candidates?.[0]?.groundingMetadata?.groundingChunks?.map((chunk: any) => ({
-          web: chunk.web,
-          maps: chunk.maps
-        })) || []
+        timestamp: Date.now()
       };
 
-      setSessions(prev => prev.map(s => {
-        if (s.id === activeId) {
-          return {
-            ...s,
-            messages: [...s.messages, botMessage],
-            updatedAt: Date.now()
-          };
-        }
-        return s;
-      }));
+      setSessions(prev => prev.map(s => s.id === activeId ? {
+        ...s,
+        messages: [...s.messages, botMsg],
+        updatedAt: Date.now()
+      } : s));
+
+      if (mode === 'pro' && response.text.includes('SPEECH_SUMMARY:')) {
+        playAudio(botMsg.id, response.text);
+      }
     } catch (error) {
-      console.error("API Error:", error);
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const playResponseAudio = async (text: string) => {
-    if (isAudioPlaying) return;
-    setIsAudioPlaying(true);
+  const handleGenerateImage = async (prompt: string) => {
+    const activeId = ensureActiveSession(prompt);
+    
+    const userMsg: ChatMessageType = {
+      id: Date.now().toString(),
+      role: 'user',
+      parts: [{ text: `Generate image: ${prompt}` }],
+      timestamp: Date.now()
+    };
+
+    setSessions(prev => prev.map(s => s.id === activeId ? {
+      ...s,
+      messages: [...s.messages, userMsg],
+      updatedAt: Date.now()
+    } : s));
+
+    setIsLoading(true);
     try {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-      const base64Audio = await geminiService.textToSpeech(text);
-      if (base64Audio) {
-        const buffer = await decodeAudioData(base64Audio, audioContextRef.current);
-        const source = audioContextRef.current.createBufferSource();
-        source.buffer = buffer;
-        source.connect(audioContextRef.current.destination);
-        source.onended = () => setIsAudioPlaying(false);
-        source.start();
-      } else {
-        setIsAudioPlaying(false);
-      }
+      const imageUrl = await geminiService.generateImage(prompt);
+      const botMsg: ChatMessageType = {
+        id: (Date.now() + 1).toString(),
+        role: 'model',
+        parts: [{ text: "Successfully generated your image:" }],
+        isMediaGeneration: true,
+        mediaType: 'image',
+        mediaUrl: imageUrl,
+        timestamp: Date.now()
+      };
+      
+      setSessions(prev => prev.map(s => s.id === activeId ? {
+        ...s,
+        messages: [...s.messages, botMsg],
+        updatedAt: Date.now()
+      } : s));
     } catch (error) {
-      setIsAudioPlaying(false);
+      console.error(error);
+      const errorMsg: ChatMessageType = {
+        id: (Date.now() + 1).toString(),
+        role: 'model',
+        parts: [{ text: "Failed to generate image. Please try a different prompt or check your connection." }],
+        timestamp: Date.now()
+      };
+      setSessions(prev => prev.map(s => s.id === activeId ? {
+        ...s,
+        messages: [...s.messages, errorMsg],
+        updatedAt: Date.now()
+      } : s));
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const playAudio = async (id: string, text: string) => {
+    if (currentAudioSourceRef.current) {
+      currentAudioSourceRef.current.stop();
+      currentAudioSourceRef.current = null;
+      setIsAudioPlaying(false);
+      return;
+    }
+
+    setAudioLoadingId(id);
+    try {
+      if (!audioContextRef.current) audioContextRef.current = new AudioContext();
+      if (audioContextRef.current.state === 'suspended') await audioContextRef.current.resume();
+
+      const base64 = await geminiService.textToSpeech(text);
+      if (base64) {
+        const buffer = await decodeAudioData(base64, audioContextRef.current);
+        const source = audioContextRef.current.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioContextRef.current.destination);
+        source.onended = () => {
+          setIsAudioPlaying(false);
+          currentAudioSourceRef.current = null;
+        };
+        currentAudioSourceRef.current = source;
+        setIsAudioPlaying(true);
+        source.start();
+      }
+    } catch (e) {
+      console.warn("Audio playback issue:", e);
+    } finally {
+      setAudioLoadingId(null);
+    }
+  };
+
+  const handleStarTopic = (msg: ChatMessageType) => {
+    if (msg.isStarred) return;
+    const newItem: SavedProjectItem = {
+      id: Date.now().toString(),
+      type: 'topic',
+      title: msg.parts[0].text?.slice(0, 40) || 'Important Topic',
+      content: msg.parts[0].text || '',
+      timestamp: Date.now()
+    };
+    setProjects(prev => [newItem, ...prev]);
+    setSessions(prev => prev.map(s => ({
+      ...s,
+      messages: s.messages.map(m => m.id === msg.id ? { ...m, isStarred: true } : m)
+    })));
+  };
+
+  const handleSaveCode = (code: string, lang: string) => {
+    const newItem: SavedProjectItem = {
+      id: Date.now().toString(),
+      type: 'code',
+      title: `Code Snippet (${lang})`,
+      content: code,
+      language: lang,
+      timestamp: Date.now()
+    };
+    setProjects(prev => [newItem, ...prev]);
+  };
+
+  const handleDeleteProject = (id: string) => {
+    setProjects(prev => prev.filter(p => p.id !== id));
+    if (selectedProjectId === id) setSelectedProjectId(null);
+  };
+
+  const currentSessionMessages = sessions.find(s => s.id === currentSessionId)?.messages || [];
+  const selectedProject = projects.find(p => p.id === selectedProjectId);
+
   return (
-    <div className="flex h-screen bg-white overflow-hidden font-inter selection:bg-indigo-100 selection:text-indigo-900">
-      {/* Sidebar Backdrop Overlay */}
+    <div className="flex h-screen bg-white text-slate-900 overflow-hidden font-jakarta">
+      
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 lg:hidden animate-in fade-in duration-300"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar Menu */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-[280px] bg-slate-50 border-r border-slate-200 transform transition-transform duration-300 ease-out lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      {/* Sidebar */}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-slate-50 border-r border-slate-200 transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex flex-col h-full">
-          <div className="p-4">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-2xl font-black tracking-tighter text-slate-900">HULU</h1>
+              <button 
+                onClick={() => setIsSidebarOpen(false)} 
+                className="lg:hidden p-2 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="relative mb-6">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search history..."
+                className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-9 pr-4 text-xs font-medium focus:ring-2 focus:ring-green-100 focus:border-green-400 outline-none transition-all"
+              />
+            </div>
+
+            <nav className="flex gap-1 bg-slate-200/50 p-1 rounded-xl mb-4">
+              <button 
+                onClick={() => setView('chats')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${view === 'chats' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                <History size={12} /> History
+              </button>
+              <button 
+                onClick={() => setView('projects')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${view === 'projects' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                <BookMarked size={12} /> Projects
+              </button>
+            </nav>
+
             <button
-              onClick={createNewSession}
-              className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 px-4 rounded-2xl font-bold shadow-lg shadow-indigo-200 transition-all active:scale-[0.98]"
+              onClick={() => { 
+                setCurrentSessionId(null); 
+                setSelectedProjectId(null);
+                setIsSidebarOpen(false); 
+                setView('chats'); 
+              }}
+              className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg"
             >
-              <Plus size={20} />
-              New Conversation
+              <Plus size={16} /> New Chat
             </button>
           </div>
-          
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
-            <h3 className="px-3 py-2 text-[11px] font-black text-slate-400 uppercase tracking-[0.15em]">Recent Chats</h3>
-            {sessions.map(session => (
-              <div
-                key={session.id}
-                onClick={() => {
-                  setCurrentSessionId(session.id);
-                  setIsSidebarOpen(false);
-                }}
-                className={`group relative flex items-center gap-3 p-3.5 rounded-2xl cursor-pointer transition-all ${currentSessionId === session.id ? 'bg-white shadow-sm ring-1 ring-slate-200 text-indigo-600' : 'text-slate-600 hover:bg-white hover:shadow-sm'}`}
-              >
-                <MessageSquare size={16} className={currentSessionId === session.id ? 'text-indigo-600' : 'text-slate-400'} />
-                <span className="flex-1 text-sm font-semibold truncate pr-4">
-                  {session.title || 'Chat'}
-                </span>
-                <button
-                  onClick={(e) => deleteSession(session.id, e)}
-                  className="absolute right-3 opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all"
-                >
-                  <Trash2 size={14} />
-                </button>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-3 pb-6">
+            {view === 'chats' ? (
+              <div className="space-y-1">
+                {filteredSessions.map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => { 
+                      setCurrentSessionId(s.id); 
+                      setSelectedProjectId(null);
+                      setIsSidebarOpen(false); 
+                    }}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all ${currentSessionId === s.id && !selectedProjectId ? 'bg-white shadow-sm ring-1 ring-slate-200' : 'hover:bg-white hover:shadow-sm'}`}
+                  >
+                    <MessageSquare size={14} className={currentSessionId === s.id ? 'text-green-500' : 'text-slate-400'} />
+                    <span className="text-[11px] font-bold text-slate-700 truncate">{s.title || 'Untitled Chat'}</span>
+                  </button>
+                ))}
               </div>
-            ))}
-            {sessions.length === 0 && (
-              <div className="px-3 py-10 text-center">
-                <p className="text-xs text-slate-400 font-medium italic">No history yet</p>
+            ) : (
+              <div className="space-y-4">
+                {filteredProjects.length === 0 && (
+                  <div className="text-center py-10">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No Projects Found</p>
+                  </div>
+                )}
+                {filteredProjects.filter(p => p.type === 'code').length > 0 && (
+                  <div>
+                    <h3 className="px-3 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Project Codes</h3>
+                    {filteredProjects.filter(p => p.type === 'code').map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => { setSelectedProjectId(p.id); setIsSidebarOpen(false); }}
+                        className={`w-full p-3 bg-white rounded-xl border transition-all text-left mb-2 group ${selectedProjectId === p.id ? 'border-green-400 ring-1 ring-green-100' : 'border-slate-100 hover:border-slate-300'}`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-black text-green-600 uppercase tracking-tighter">{p.language}</span>
+                          <Terminal size={10} className="text-slate-300" />
+                        </div>
+                        <p className="text-[11px] font-bold text-slate-700 truncate">{p.title}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {filteredProjects.filter(p => p.type === 'topic').length > 0 && (
+                  <div>
+                    <h3 className="px-3 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Important Topics</h3>
+                    {filteredProjects.filter(p => p.type === 'topic').map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => { setSelectedProjectId(p.id); setIsSidebarOpen(false); }}
+                        className={`w-full p-3 bg-white rounded-xl border transition-all text-left mb-2 ${selectedProjectId === p.id ? 'border-green-400 ring-1 ring-green-100' : 'border-slate-100 hover:border-slate-300'}`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <Star size={10} className="text-yellow-500" fill="currentColor" />
+                          <span className="text-[8px] text-slate-300">{new Date(p.timestamp).toLocaleDateString()}</span>
+                        </div>
+                        <p className="text-[11px] font-bold text-slate-700 line-clamp-2">{p.title}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
-          </div>
-
-          <div className="p-4 border-t border-slate-200 bg-slate-50">
-            <div className="flex items-center gap-3 p-3 rounded-2xl hover:bg-white transition-colors cursor-pointer group border border-transparent hover:border-slate-200">
-              <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
-                <Settings size={18} />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-800">Advanced Settings</p>
-                <p className="text-[10px] text-slate-500 font-medium">Manage API & Identity</p>
-              </div>
-            </div>
           </div>
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col h-full relative bg-white">
-        {/* Modern Header */}
-        <header className="flex items-center justify-between px-4 h-16 bg-white/80 backdrop-blur-xl border-b border-slate-100 sticky top-0 z-30">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-2.5 hover:bg-slate-50 rounded-xl lg:hidden text-slate-600 transition-colors"
-            >
-              <PanelLeft size={20} strokeWidth={2.5} />
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col relative bg-white min-w-0">
+        <header className="h-16 flex items-center justify-between px-6 border-b border-slate-100 sticky top-0 z-20 bg-white/80 backdrop-blur-md">
+          <div className="flex items-center gap-4">
+            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-slate-600 p-2 hover:bg-slate-50 rounded-lg">
+              <Menu size={20} />
             </button>
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">
-                <Bot size={20} className="text-white" />
-              </div>
-              <div>
-                <h1 className="text-sm font-black text-slate-900 tracking-tight leading-none">GEMINI ULTIMATE</h1>
-                <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest mt-1">Intelligence Layer</p>
-              </div>
-            </div>
+            <h2 className="text-lg font-black tracking-tighter uppercase">HULU</h2>
           </div>
-          
-          <div className="flex items-center gap-1.5">
-             <div className="hidden sm:flex items-center gap-1 bg-green-50 text-green-700 px-3 py-1.5 rounded-full border border-green-100">
-               <ShieldCheck size={14} />
-               <span className="text-[10px] font-black uppercase tracking-wider">Secure Connection</span>
+          <div className="flex items-center gap-3">
+             <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
+               <User size={16} className="text-slate-400" />
              </div>
           </div>
         </header>
 
-        {/* Scrollable Conversation Context */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-8 custom-scrollbar">
-          <div className="max-w-4xl mx-auto min-h-full">
-            {!currentSession || currentSession.messages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center py-20 animate-in fade-in zoom-in-95 duration-1000 ease-out">
-                <div className="relative mb-10">
-                  <div className="absolute inset-0 bg-indigo-500/20 blur-[60px] rounded-full scale-150 animate-pulse" />
-                  <div className="relative w-24 h-24 bg-white rounded-[32px] flex items-center justify-center shadow-2xl shadow-indigo-100 border border-indigo-50">
-                    <Bot size={48} className="text-indigo-600" />
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-6 py-10 custom-scrollbar">
+          <div className="max-w-4xl mx-auto min-h-full flex flex-col">
+            
+            {selectedProject ? (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+                <button 
+                  onClick={() => setSelectedProjectId(null)}
+                  className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 mb-6 transition-colors"
+                >
+                  <ArrowLeft size={14} /> Back to Chat
+                </button>
+                
+                <div className="bg-white border border-slate-200 rounded-[32px] overflow-hidden shadow-xl shadow-slate-200/50">
+                  <div className="p-6 md:p-8 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        {selectedProject.type === 'code' ? (
+                          <span className="px-2.5 py-1 bg-green-100 text-green-700 text-[10px] font-black uppercase rounded-lg border border-green-200">
+                            {selectedProject.language || 'Code'}
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 bg-yellow-100 text-yellow-700 text-[10px] font-black uppercase rounded-lg border border-yellow-200">
+                            Topic
+                          </span>
+                        )}
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">{new Date(selectedProject.timestamp).toLocaleString()}</span>
+                      </div>
+                      <h3 className="text-2xl font-black text-slate-900 tracking-tight">{selectedProject.title}</h3>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(selectedProject.content);
+                        }}
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-900 text-white px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg active:scale-95"
+                      >
+                        <Copy size={16} /> Copy Content
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteProject(selectedProject.id)}
+                        className="p-3 bg-red-50 text-red-500 hover:bg-red-100 rounded-2xl transition-colors border border-red-100"
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="absolute -bottom-2 -right-2 bg-indigo-600 text-white p-2 rounded-xl shadow-lg ring-4 ring-white">
-                    <Zap size={16} fill="white" />
+                  
+                  <div className="p-6 md:p-10">
+                    {selectedProject.type === 'code' ? (
+                      <div className="rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">
+                        <pre className="bg-slate-900 p-6 md:p-8 overflow-x-auto custom-scrollbar font-mono text-sm leading-relaxed text-green-400">
+                          <code>{selectedProject.content}</code>
+                        </pre>
+                      </div>
+                    ) : (
+                      <div className="text-slate-700 text-lg leading-relaxed font-medium whitespace-pre-wrap">
+                        {selectedProject.content}
+                      </div>
+                    )}
                   </div>
                 </div>
+              </div>
+            ) : currentSessionMessages.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center py-20 animate-in fade-in duration-1000">
+                <div className="w-20 h-20 bg-slate-900 rounded-[30px] flex items-center justify-center shadow-2xl mb-8 transform hover:scale-110 transition-transform cursor-default">
+                  <Cpu size={40} className="text-green-400" strokeWidth={1.5} />
+                </div>
+                <h3 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter uppercase mb-2 text-center">How can HULU help?</h3>
+                <p className="text-slate-500 font-bold uppercase text-[10px] tracking-[0.3em] text-center">Advanced Intelligence Ready</p>
                 
-                <h2 className="text-4xl font-black text-slate-900 mb-4 tracking-tight">AI Search & Analysis</h2>
-                <p className="text-slate-500 max-w-md mx-auto mb-12 leading-relaxed font-semibold text-lg">
-                  Ask complex questions, analyze images, and search the internet with deep reasoning.
-                </p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-3xl">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-xl mt-12 px-4">
                   {[
-                    { text: "Latest news on AI breakthroughs", icon: "🌐", tag: "Live Search" },
-                    { text: "Compare the specs of Tesla vs BYD", icon: "📊", tag: "Data Analysis" },
-                    { text: "Explain how photosynthesis works", icon: "🌱", tag: "Education" },
-                    { text: "Help me write a professional email", icon: "✍️", tag: "Writing" }
+                    "HULU Pro: Analyze local market trends",
+                    "Generate a React contact form code",
+                    "Explain the theory of relativity simply",
+                    "Write a professional email to my boss"
                   ].map((tip, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handleSendMessage(tip.text, false)}
-                      className="group text-left p-5 bg-white hover:bg-slate-50 border border-slate-200 hover:border-indigo-200 rounded-3xl transition-all hover:shadow-xl hover:shadow-indigo-500/5 flex flex-col gap-2"
+                    <button 
+                      key={i} 
+                      onClick={() => handleSendMessage(tip, tip.includes('Pro') ? 'pro' : 'normal')}
+                      className="text-left p-5 rounded-2xl border border-slate-200 hover:border-green-400 bg-white hover:bg-green-50 transition-all font-bold text-sm text-slate-700"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xl">{tip.icon}</span>
-                        <span className="text-[9px] font-black text-indigo-500 uppercase bg-indigo-50 px-2 py-0.5 rounded-md">{tip.tag}</span>
-                      </div>
-                      <span className="text-slate-800 font-bold group-hover:text-indigo-600 transition-colors">"{tip.text}"</span>
+                      "{tip}"
                     </button>
                   ))}
                 </div>
-                
-                <div className="mt-16 flex items-center gap-8 opacity-40 grayscale">
-                   <div className="flex items-center gap-2 font-black text-sm tracking-tighter">
-                     <Info size={16} /> DATA PRIVACY
-                   </div>
-                   <div className="flex items-center gap-2 font-black text-sm tracking-tighter">
-                     <Zap size={16} /> REAL-TIME WEB
-                   </div>
-                </div>
               </div>
             ) : (
-              <div className="pb-10">
-                {currentSession.messages.map((msg) => (
+              <div className="pb-10 w-full overflow-hidden">
+                {currentSessionMessages.map(m => (
                   <ChatMessage 
-                    key={msg.id} 
-                    message={msg} 
-                    onPlayAudio={playResponseAudio}
-                    isAudioPlaying={isAudioPlaying}
+                    key={m.id} 
+                    message={m} 
+                    onPlayAudio={playAudio} 
+                    isAudioPlaying={isAudioPlaying} 
+                    audioLoadingId={audioLoadingId}
+                    onStar={handleStarTopic}
+                    onSaveCode={handleSaveCode}
                   />
                 ))}
                 {isLoading && (
-                  <div className="flex justify-start items-start gap-4 mb-8">
-                    <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center animate-pulse border border-slate-200">
-                      <Bot size={22} className="text-slate-300" />
-                    </div>
-                    <div className="space-y-3">
-                      <div className="h-10 w-64 bg-slate-50 rounded-2xl animate-pulse"></div>
-                      <div className="h-4 w-40 bg-slate-50 rounded-full animate-pulse"></div>
-                    </div>
+                  <div className="flex items-center gap-3 text-slate-400 animate-pulse mb-8">
+                    <Loader2 size={16} className="animate-spin" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">HULU is analyzing...</span>
                   </div>
                 )}
               </div>
@@ -332,8 +515,9 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Dynamic Chat Input Bar */}
-        <ChatInput onSend={handleSendMessage} disabled={isLoading} />
+        {!selectedProjectId && (
+          <ChatInput onSend={handleSendMessage} onGenerateImage={handleGenerateImage} disabled={isLoading} />
+        )}
       </main>
     </div>
   );
