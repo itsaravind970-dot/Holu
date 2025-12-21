@@ -16,9 +16,6 @@ export interface ChatMessage {
   parts: MessagePart[];
   timestamp: number;
   isStarred?: boolean;
-  isMediaGeneration?: boolean;
-  mediaType?: 'image' | 'video';
-  mediaUrl?: string;
   groundingSources?: Array<{
     web?: {
       uri: string;
@@ -41,4 +38,15 @@ export interface SavedProjectItem {
   language?: string;
   timestamp: number;
   title: string;
+}
+
+export interface UserAccount {
+  id: string;
+  username: string;
+  chatbotName: string;
+  phoneNumber: string;
+  password?: string;
+  createdAt: number;
+  isBlocked?: boolean;
+  profilePic?: string;
 }

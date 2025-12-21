@@ -1,15 +1,35 @@
 
 import { GoogleGenAI, Modality } from "@google/genai";
-import { ChatMessage, HuluMode } from "../types";
+import { ChatMessage } from "../types";
 
 const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+const MASTER_PROMPT = `You are "Hulu assis", a world-class AI companion engineered for elite performance, deep reasoning, and precise analysis.
+
+────────────────────────
+IDENTITY & ORIGIN
+────────────────────────
+Project Name: Hulu assis
+Founder: Aravind
+Mission: To provide the highest tier of artificial intelligence, combining advanced logic, creative depth, and real-time synthesis.
+
+────────────────────────
+OPERATIONAL PROTOCOLS
+────────────────────────
+1. ELITE REASONING: Every response must be thorough, structured, and insightful. Use bullet points for complex breakdowns and provide "best-in-class" solutions.
+2. VISUAL ANALYSIS: You can analyze images with high precision. When an image is provided, describe its components, context, and any specific details requested.
+3. LIMITATIONS: Do not attempt to process videos. Do not generate images or videos.
+4. TONE: Professional, helpful, and highly intelligent.
+
+GOAL:
+Act as a primary research, coding, and analytical partner for the user. Always deliver the most accurate and high-quality information available.`;
 
 export const geminiService = {
   async chatWithHistory(
     history: ChatMessage[],
     newMessage: string,
-    mode: HuluMode,
-    media?: { data: string; mimeType: string }
+    media?: { data: string; mimeType: string },
+    signal?: AbortSignal
   ) {
     const ai = getAI();
     
@@ -37,58 +57,33 @@ export const geminiService = {
       parts: currentParts
     });
 
-    const isPro = mode === 'pro';
-    const model = isPro ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
+    const modelName = 'gemini-3-pro-preview';
     
-    const systemInstruction = isPro 
-      ? `You are HULU Pro. Analyze the user's text and expression (tone/sentiment). React empathetically or professionally based on their mood.
-         You have access to global platforms via Google Search. 
-         IMPORTANT: After your main response, add a section labeled 'SPEECH_SUMMARY:' containing the most important 2-3 points for audio playback.`
-      : `You are HULU AI. Provide fast, accurate, and helpful answers. Be concise.`;
-
     const config: any = {
-      systemInstruction,
-      tools: isPro ? [{ googleSearch: {} }] : [],
+      systemInstruction: MASTER_PROMPT,
+      tools: [{ googleSearch: {} }],
+      temperature: 0.7,
+      topP: 0.95,
     };
 
     try {
+      // Note: If the SDK doesn't natively support signal, we handle the abortion at the App level
       const response = await ai.models.generateContent({
-        model,
+        model: modelName,
         contents: contents as any,
         config
       });
+      
+      if (signal?.aborted) {
+        throw new Error('AbortError');
+      }
+      
       return response;
     } catch (error: any) {
-      console.error("HULU API Error:", error);
-      throw error;
-    }
-  },
-
-  async generateImage(prompt: string) {
-    const ai = getAI();
-    try {
-      // Using gemini-2.5-flash-image for free, high-quality generation
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: {
-          parts: [{ text: prompt }]
-        },
-        config: { 
-          imageConfig: { 
-            aspectRatio: "1:1" 
-          } 
-        }
-      });
-
-      if (response.candidates?.[0]?.content?.parts) {
-        const imagePart = response.candidates[0].content.parts.find(p => p.inlineData);
-        if (imagePart?.inlineData) {
-          return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
-        }
+      if (error.message === 'AbortError' || signal?.aborted) {
+        throw new Error('AbortError');
       }
-      throw new Error("The model did not return an image. It might be a safety filter or complex prompt.");
-    } catch (error) {
-      console.error("HULU Image Error:", error);
+      console.error("Hulu assis Core Error:", error);
       throw error;
     }
   },
@@ -96,16 +91,11 @@ export const geminiService = {
   async textToSpeech(text: string) {
     const ai = getAI();
     try {
-      // Aggressive cleaning to prevent 500 INTERNAL errors
-      const summaryMatch = text.match(/SPEECH_SUMMARY:\s*([\s\S]*)/i);
-      let cleanText = summaryMatch ? summaryMatch[1] : text;
-      
-      cleanText = cleanText
-        .replace(/```[\s\S]*?```/g, '') // Remove code blocks entirely
-        .replace(/[*_#`\[\]()]/g, '') // Remove markdown syntax
-        .replace(/[^\w\s.,?!']/g, ' ') // Remove all special symbols that cause model crashes
-        .replace(/\s+/g, ' ') // Collapse spaces
-        .slice(0, 150) // Keep it very short for stability
+      let cleanText = text
+        .replace(/```[\s\S]*?```/g, ' [Code omitted] ') 
+        .replace(/[*_#`\[\]()]/g, ' ') 
+        .replace(/[^\w\s.,?!']/g, ' ') 
+        .replace(/\s+/g, ' ')
         .trim();
 
       if (!cleanText || cleanText.length < 2) return null;
@@ -126,8 +116,7 @@ export const geminiService = {
       const audioPart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
       return audioPart?.inlineData?.data || null;
     } catch (error) {
-      // Silently fail TTS if it errors, as it's a non-critical preview feature
-      console.warn("TTS failed:", error);
+      console.warn("TTS System Error:", error);
       return null;
     }
   }
