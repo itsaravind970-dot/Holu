@@ -1,20 +1,7 @@
 
+// services/geminiService.ts
 import { GoogleGenAI, Modality } from "@google/genai";
 import { ChatMessage } from "../types";
-
-// Safety check for environment variables to prevent "dead screen" crashes
-const getApiKey = () => {
-  try {
-    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-      return process.env.API_KEY;
-    }
-  } catch (e) {
-    console.warn("Hulu assis: Environment process access restricted.");
-  }
-  return "";
-};
-
-const getAI = () => new GoogleGenAI({ apiKey: getApiKey() });
 
 const MASTER_PROMPT = `You are "Hulu assis", a world-class AI companion engineered for elite performance, deep reasoning, and precise analysis.
 
@@ -37,18 +24,14 @@ GOAL:
 Act as a primary research, coding, and analytical partner for the user. Always deliver the most accurate and high-quality information available.`;
 
 export const geminiService = {
+  // Fix: Generate content using gemini-3-pro-preview with search grounding, initializing right before use.
   async chatWithHistory(
     history: ChatMessage[],
     newMessage: string,
     media?: { data: string; mimeType: string },
     signal?: AbortSignal
   ) {
-    const apiKey = getApiKey();
-    if (!apiKey) {
-      throw new Error("Missing Security Uplink Key. Please configure API_KEY.");
-    }
-    
-    const ai = getAI();
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     
     const contents = history.map(msg => ({
       role: msg.role === 'user' ? 'user' : 'model',
@@ -104,11 +87,9 @@ export const geminiService = {
     }
   },
 
+  // Fix: Generate speech using gemini-2.5-flash-preview-tts.
   async textToSpeech(text: string) {
-    const apiKey = getApiKey();
-    if (!apiKey) return null;
-
-    const ai = getAI();
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     try {
       let cleanText = text
         .replace(/```[\s\S]*?```/g, ' [Code omitted] ') 
@@ -141,13 +122,15 @@ export const geminiService = {
   }
 };
 
+// Fix: Implement raw PCM audio decoding as required by the Live/TTS APIs.
 export async function decodeAudioData(base64: string, ctx: AudioContext): Promise<AudioBuffer> {
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
   const dataInt16 = new Int16Array(bytes.buffer);
-  const buffer = ctx.createBuffer(1, dataInt16.length, 24000);
+  const frameCount = dataInt16.length;
+  const buffer = ctx.createBuffer(1, frameCount, 24000);
   const channelData = buffer.getChannelData(0);
-  for (let i = 0; i < dataInt16.length; i++) channelData[i] = dataInt16[i] / 32768.0;
+  for (let i = 0; i < frameCount; i++) channelData[i] = dataInt16[i] / 32768.0;
   return buffer;
 }

@@ -1,24 +1,17 @@
 
 import React from 'react';
 import { ChatMessage as ChatMessageType } from '../types';
-import { User, Cpu, Play, Square, Loader2, Star, Copy, Terminal, FileImage } from 'lucide-react';
+import { User, Cpu, Play, Square, Star, Copy, Globe, ExternalLink } from 'lucide-react';
 
 interface Props {
   message: ChatMessageType;
-  onPlayAudio?: (messageId: string, text: string) => void;
+  onPlayAudio?: (id: string, text: string) => void;
   isAudioPlaying?: boolean;
-  audioLoadingId?: string | null;
-  onStar?: (message: ChatMessageType) => void;
-  onSaveCode?: (code: string, lang: string) => void;
+  onStar?: (m: ChatMessageType) => void;
 }
 
-const ChatMessage: React.FC<Props> = ({ message, onPlayAudio, isAudioPlaying, audioLoadingId, onStar, onSaveCode }) => {
+const ChatMessage: React.FC<Props> = ({ message, onPlayAudio, isAudioPlaying, onStar }) => {
   const isUser = message.role === 'user';
-  const isLoadingThisAudio = audioLoadingId === message.id;
-
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-  };
 
   const renderContent = (text: string) => {
     const parts = text.split(/(```[\s\S]*?```)/g);
@@ -27,27 +20,14 @@ const ChatMessage: React.FC<Props> = ({ message, onPlayAudio, isAudioPlaying, au
         const lines = part.split('\n');
         const lang = lines[0].replace('```', '').trim() || 'code';
         const code = lines.slice(1, -1).join('\n');
-        
         return (
-          <div key={i} className="my-5 rounded-3xl overflow-hidden border border-slate-700 shadow-2xl animate-in zoom-in-95 w-full max-w-full">
-            <div className="bg-slate-800 px-5 py-3 flex items-center justify-between border-b border-slate-700">
-              <div className="flex items-center gap-3 text-slate-400">
-                <Terminal size={14} />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em]">{lang}</span>
-              </div>
-              <div className="flex items-center gap-4">
-                 <button onClick={() => onSaveCode?.(code, lang)} className="text-slate-400 hover:text-green-400 transition-colors p-1" title="Save">
-                    <Cpu size={14} />
-                 </button>
-                 <button onClick={() => handleCopy(code)} className="text-slate-400 hover:text-white transition-colors p-1" title="Copy">
-                    <Copy size={14} />
-                 </button>
-              </div>
+          <div key={i} className="my-4 rounded-[20px] md:rounded-[24px] overflow-hidden border border-slate-700 shadow-xl bg-slate-900">
+            <div className="bg-slate-800 px-4 md:px-6 py-2 md:py-3 flex items-center justify-between border-b border-slate-700">
+              <span className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{lang}</span>
+              <button onClick={() => navigator.clipboard.writeText(code)} className="text-slate-400 hover:text-white transition-colors"><Copy size={14} /></button>
             </div>
-            <div className="bg-slate-900 overflow-x-auto custom-scrollbar w-full">
-              <pre className="p-6 md:p-8 min-w-full inline-block">
-                <code className="text-sm text-green-400 font-mono whitespace-pre block leading-relaxed">{code}</code>
-              </pre>
+            <div className="p-4 md:p-6 overflow-x-auto custom-scrollbar">
+              <code className="text-[10px] md:text-[12px] text-green-400 font-mono whitespace-pre leading-relaxed">{code}</code>
             </div>
           </div>
         );
@@ -56,59 +36,51 @@ const ChatMessage: React.FC<Props> = ({ message, onPlayAudio, isAudioPlaying, au
     });
   };
 
-  // Combine all text parts for full audio reading
-  const fullTextContent = message.parts.map(p => p.text || '').join(' ').trim();
-
   return (
-    <div className={`flex w-full mb-10 ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`flex w-full md:max-w-[92%] ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start gap-5`}>
-        <div className={`flex-shrink-0 w-9 h-9 rounded-2xl flex items-center justify-center shadow-lg transform transition-transform hover:scale-110 ${isUser ? 'bg-slate-900' : 'bg-green-500'}`}>
-          {isUser ? <User size={18} className="text-white" /> : <Cpu size={18} className="text-white" />}
+    <div className={`flex w-full mb-8 md:mb-12 ${isUser ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}>
+      <div className={`flex max-w-[95%] sm:max-w-[85%] md:max-w-[75%] ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start gap-2.5 md:gap-4`}>
+        <div className={`shrink-0 w-8 h-8 md:w-11 md:h-11 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg border-2 border-white ${isUser ? 'bg-slate-900' : 'bg-green-500'}`}>
+          {isUser ? <User size={14} className="md:w-5 md:h-5 text-white" /> : <Cpu size={14} className="md:w-5 md:h-5 text-white" />}
         </div>
-        
-        <div className={`flex flex-col min-w-0 flex-1 ${isUser ? 'items-end' : 'items-start'} gap-2`}>
-          <div className={`p-5 md:p-6 rounded-[28px] shadow-sm text-[15px] w-full overflow-hidden ${isUser ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-800'}`}>
-            {message.parts.map((part, idx) => (
-              <div key={idx} className="w-full">
-                {part.inlineData && (
-                  <div className="mb-4 p-3 bg-slate-800/20 border border-slate-300/30 rounded-2xl flex items-center gap-3 w-fit">
-                    <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 border border-slate-300/50">
-                      <img 
-                        src={`data:${part.inlineData.mimeType};base64,${part.inlineData.data}`} 
-                        alt="attachment" 
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="flex flex-col">
-                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Visual Context</span>
-                       <span className="text-xs font-bold truncate max-w-[120px]">Image Attachment</span>
-                    </div>
+        <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} gap-2`}>
+          <div className={`p-4 md:p-6 rounded-[24px] md:rounded-[32px] text-xs md:text-[14px] shadow-sm font-medium ${isUser ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-800'}`}>
+            {message.parts.map((p, i) => (
+              <div key={i}>
+                {p.inlineData && (
+                  <div className="mb-4 rounded-[16px] md:rounded-[24px] overflow-hidden border border-slate-200 max-w-[150px] md:max-w-[200px] shadow-md">
+                    <img src={`data:${p.inlineData.mimeType};base64,${p.inlineData.data}`} className="w-full h-auto" />
                   </div>
                 )}
-                {part.text && renderContent(part.text)}
+                {p.text && renderContent(p.text)}
               </div>
             ))}
-          </div>
 
-          <div className="flex items-center gap-4 px-2">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-              {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
-            
+            {/* RESEARCH NODES */}
+            {!isUser && message.groundingSources && message.groundingSources.length > 0 && (
+              <div className="mt-6 pt-5 border-t border-slate-100 space-y-3">
+                <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2"><Globe size={12} /> RESEARCH NODES FOUND:</p>
+                <div className="flex flex-wrap gap-2">
+                  {message.groundingSources.map((s, idx) => s.web && (
+                    <a key={idx} href={s.web.uri} target="_blank" rel="noreferrer" className="text-[10px] md:text-[11px] text-blue-600 font-bold bg-blue-50/60 hover:bg-blue-100 px-3 py-1.5 md:py-2 rounded-xl border border-blue-100 transition-all flex items-center gap-1.5 max-w-[180px] md:max-w-[240px]">
+                      <span className="truncate">{s.web.title || 'Uplink Node'}</span>
+                      <ExternalLink size={10} className="shrink-0" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-4 px-3">
+            <span className="text-[8px] md:text-[9px] text-slate-400 font-black uppercase tracking-widest">{new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             {!isUser && (
-              <>
-                <button
-                  onClick={() => onPlayAudio?.(message.id, fullTextContent)}
-                  className="flex items-center gap-1.5 text-[10px] font-black uppercase text-slate-400 hover:text-green-600 transition-colors"
-                >
-                  {isLoadingThisAudio ? <Loader2 size={12} className="animate-spin" /> : isAudioPlaying ? <Square size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
-                  {isAudioPlaying ? 'Stop' : 'Listen'}
+              <div className="flex items-center gap-4">
+                <button onClick={() => onPlayAudio?.(message.id, message.parts.map(p => p.text || '').join(' '))} className="text-[9px] md:text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 transition-colors flex items-center gap-1.5">
+                  {isAudioPlaying ? <Square size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />} {isAudioPlaying ? 'STOP' : 'LISTEN'}
                 </button>
-                
-                <button onClick={() => onStar?.(message)} className={`transition-colors ${message.isStarred ? 'text-yellow-500' : 'text-slate-300 hover:text-yellow-500'}`}>
-                  <Star size={14} fill={message.isStarred ? "currentColor" : "none"} />
-                </button>
-              </>
+                <button onClick={() => onStar?.(message)} className="text-slate-300 hover:text-yellow-500 transition-colors"><Star size={14} /></button>
+                <button onClick={() => navigator.clipboard.writeText(message.parts.map(p => p.text || '').join(' '))} className="text-slate-300 hover:text-slate-900 transition-colors"><Copy size={14} /></button>
+              </div>
             )}
           </div>
         </div>
