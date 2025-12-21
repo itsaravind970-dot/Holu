@@ -25,6 +25,7 @@ const ChatInput: React.FC<Props> = ({ onSend, onStop, disabled }) => {
       onSend(text, file ? { data: file.data, mimeType: file.mimeType } : undefined);
       setText(''); 
       setFile(null);
+      if (textareaRef.current) textareaRef.current.style.height = 'auto';
     }
   };
 
@@ -36,15 +37,15 @@ const ChatInput: React.FC<Props> = ({ onSend, onStop, disabled }) => {
   }, [text]);
 
   return (
-    <div className="px-4 py-3 bg-white border-t border-slate-100 pb-[calc(12px+env(safe-area-inset-bottom))]">
+    <div className="px-4 py-3 bg-white border-t border-slate-100 pb-[calc(10px+env(safe-area-inset-bottom))]">
       <div className="max-w-3xl mx-auto space-y-2">
         {file && (
           <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-xl border border-slate-200 w-fit">
-            <span className="text-[8px] sm:text-[9px] font-black text-slate-700 truncate max-w-[120px] uppercase pl-2">{file.name}</span>
-            <button onClick={() => setFile(null)} className="p-1 hover:bg-slate-200 rounded-full"><X size={12} /></button>
+            <span className="text-[10px] font-bold text-slate-700 truncate max-w-[150px] uppercase pl-2">{file.name}</span>
+            <button onClick={() => setFile(null)} className="p-1"><X size={12} /></button>
           </div>
         )}
-        <div className="flex items-end gap-2 bg-slate-50 rounded-[24px] p-2 border border-slate-200 focus-within:border-slate-400 transition-all shadow-sm">
+        <div className="flex items-end gap-2 bg-slate-50 rounded-[28px] p-2 border border-slate-200 focus-within:border-slate-400 transition-all shadow-sm">
           <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => {
              const f = e.target.files?.[0];
              if (f) {
@@ -53,33 +54,23 @@ const ChatInput: React.FC<Props> = ({ onSend, onStop, disabled }) => {
                 reader.readAsDataURL(f);
              }
           }} />
-          <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2.5 text-slate-400 hover:text-slate-900 transition-colors shrink-0"><Paperclip size={20} /></button>
+          <button type="button" onClick={() => fileInputRef.current?.click()} className="p-3 text-slate-400 hover:text-slate-900 transition-colors shrink-0"><Paperclip size={20} /></button>
           <textarea
             ref={textareaRef}
             rows={1}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey && window.innerWidth > 768) {
-                e.preventDefault();
-                handleSubmit();
-              }
-            }}
-            placeholder={disabled ? "Synthesizing Node..." : "Type command..."}
-            className="flex-1 bg-transparent border-none focus:outline-none text-[14px] font-medium py-2.5 px-1 max-h-[120px] resize-none overflow-y-auto leading-tight placeholder:text-slate-400"
+            placeholder={disabled ? "Processing..." : "Type command..."}
+            className="flex-1 bg-transparent border-none focus:outline-none text-[15px] font-medium py-3 px-1 max-h-[120px] resize-none leading-tight placeholder:text-slate-400"
             disabled={disabled}
           />
           <button 
             type="button" 
             onClick={handleSubmit} 
-            className={`p-3 rounded-2xl transition-all shrink-0 ${(!text.trim() && !file) && !disabled ? 'bg-slate-200 text-slate-400' : 'bg-slate-900 text-white shadow-lg active:scale-95'}`}
+            className={`p-3.5 rounded-2xl transition-all shrink-0 ${(!text.trim() && !file) && !disabled ? 'bg-slate-200 text-slate-400' : 'bg-slate-900 text-white shadow-lg active:scale-95'}`}
           >
-            {disabled ? <Square size={16} fill="currentColor" className="animate-pulse" /> : <Send size={16} />}
+            {disabled ? <Square size={16} fill="currentColor" className="animate-pulse" /> : <Send size={18} />}
           </button>
-        </div>
-        <div className="flex items-center justify-center gap-1.5 py-0.5">
-          <Zap size={8} className="text-green-500" />
-          <p className="text-[7px] text-slate-400 font-black uppercase tracking-[0.3em]">Hulu assis protocol uplink</p>
         </div>
       </div>
     </div>

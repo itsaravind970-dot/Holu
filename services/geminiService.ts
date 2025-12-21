@@ -3,24 +3,9 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { ChatMessage } from "../types";
 
-const MASTER_PROMPT = `You are "Hulu assis", a world-class AI companion engineered for elite performance, deep reasoning, and precise analysis.
-
-────────────────────────
-IDENTITY & ORIGIN
-────────────────────────
-Project Name: Hulu assis
-Founder: Aravind
-Mission: To provide the highest tier of artificial intelligence, combining advanced logic, creative depth, and real-time synthesis.
-
-────────────────────────
-OPERATIONAL PROTOCOLS
-────────────────────────
-1. ELITE REASONING: Every response must be thorough, structured, and insightful. Use bullet points for complex breakdowns.
-2. VISUAL ANALYSIS: You can analyze images with high precision.
-3. TONE: Professional, helpful, and highly intelligent.
-
-GOAL:
-Act as a primary research and coding partner. Always deliver accurate, high-quality info.`;
+const MASTER_PROMPT = `You are "Hulu assis", a professional AI assistant created by Aravind. 
+Your goal is to provide clear, helpful, and high-quality responses. 
+Always prioritize accuracy and maintain a helpful tone.`;
 
 export const geminiService = {
   async chatWithHistory(
@@ -29,11 +14,13 @@ export const geminiService = {
     media?: { data: string; mimeType: string },
     signal?: AbortSignal
   ) {
-    if (!process.env.API_KEY) {
-      throw new Error("API KEY MISSING. Please configure the environment variable.");
+    const apiKey = process.env.API_KEY;
+    
+    if (!apiKey || apiKey === "undefined") {
+      throw new Error("API_KEY_MISSING");
     }
 
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey });
     
     const contents = history.map(msg => ({
       role: msg.role === 'user' ? 'user' : 'model',
@@ -42,7 +29,7 @@ export const geminiService = {
         if (p.inlineData) return { inlineData: p.inlineData };
         return { text: '' };
       })
-    }));
+    })).filter(c => c.parts.length > 0);
 
     const currentParts: any[] = [{ text: newMessage }];
     if (media) {
@@ -59,59 +46,41 @@ export const geminiService = {
       parts: currentParts
     });
 
-    // gemini-3-flash-preview is more widely available and faster for general chat
-    const modelName = 'gemini-3-flash-preview';
-    
-    const config: any = {
-      systemInstruction: MASTER_PROMPT,
-      tools: [{ googleSearch: {} }],
-      temperature: 0.7,
-      topP: 0.95,
-      thinkingConfig: { thinkingBudget: 0 } // Flash doesn't need high budget for chat
-    };
-
     try {
+      // Using gemini-3-flash-preview for fastest and most reliable response
       const response = await ai.models.generateContent({
-        model: modelName,
+        model: 'gemini-3-flash-preview',
         contents: contents as any,
-        config
+        config: {
+          systemInstruction: MASTER_PROMPT,
+          temperature: 0.8,
+          topP: 0.9,
+        }
       });
       
-      if (signal?.aborted) {
-        throw new Error('AbortError');
-      }
-      
+      if (signal?.aborted) throw new Error('AbortError');
       return response;
     } catch (error: any) {
-      if (error.message === 'AbortError' || signal?.aborted) {
-        throw new Error('AbortError');
-      }
-      console.error("Hulu assis Core Error:", error);
+      if (error.message === 'AbortError') throw error;
+      console.error("Gemini Critical Error:", error);
       throw error;
     }
   },
 
   async textToSpeech(text: string) {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+    const apiKey = process.env.API_KEY;
+    if (!apiKey || apiKey === "undefined") return null;
+    
+    const ai = new GoogleGenAI({ apiKey });
     try {
-      let cleanText = text
-        .replace(/```[\s\S]*?```/g, ' [Code content] ') 
-        .replace(/[*_#`\[\]()]/g, ' ') 
-        .replace(/[^\w\s.,?!']/g, ' ') 
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      if (!cleanText || cleanText.length < 2) return null;
-
+      const cleanText = text.replace(/[`*#]/g, '').slice(0, 500);
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
         contents: [{ parts: [{ text: cleanText }] }],
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
-            voiceConfig: { 
-              prebuiltVoiceConfig: { voiceName: 'Kore' } 
-            },
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
           },
         },
       });
@@ -119,7 +88,6 @@ export const geminiService = {
       const audioPart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
       return audioPart?.inlineData?.data || null;
     } catch (error) {
-      console.warn("TTS System Error:", error);
       return null;
     }
   }
