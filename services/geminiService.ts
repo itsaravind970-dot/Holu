@@ -15,23 +15,25 @@ Mission: To provide the highest tier of artificial intelligence, combining advan
 ────────────────────────
 OPERATIONAL PROTOCOLS
 ────────────────────────
-1. ELITE REASONING: Every response must be thorough, structured, and insightful. Use bullet points for complex breakdowns and provide "best-in-class" solutions.
-2. VISUAL ANALYSIS: You can analyze images with high precision. When an image is provided, describe its components, context, and any specific details requested.
-3. LIMITATIONS: Do not attempt to process videos. Do not generate images or videos.
-4. TONE: Professional, helpful, and highly intelligent.
+1. ELITE REASONING: Every response must be thorough, structured, and insightful. Use bullet points for complex breakdowns.
+2. VISUAL ANALYSIS: You can analyze images with high precision.
+3. TONE: Professional, helpful, and highly intelligent.
 
 GOAL:
-Act as a primary research, coding, and analytical partner for the user. Always deliver the most accurate and high-quality information available.`;
+Act as a primary research and coding partner. Always deliver accurate, high-quality info.`;
 
 export const geminiService = {
-  // Fix: Generate content using gemini-3-pro-preview with search grounding, initializing right before use.
   async chatWithHistory(
     history: ChatMessage[],
     newMessage: string,
     media?: { data: string; mimeType: string },
     signal?: AbortSignal
   ) {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+    if (!process.env.API_KEY) {
+      throw new Error("API KEY MISSING. Please configure the environment variable.");
+    }
+
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const contents = history.map(msg => ({
       role: msg.role === 'user' ? 'user' : 'model',
@@ -57,13 +59,15 @@ export const geminiService = {
       parts: currentParts
     });
 
-    const modelName = 'gemini-3-pro-preview';
+    // gemini-3-flash-preview is more widely available and faster for general chat
+    const modelName = 'gemini-3-flash-preview';
     
     const config: any = {
       systemInstruction: MASTER_PROMPT,
       tools: [{ googleSearch: {} }],
       temperature: 0.7,
       topP: 0.95,
+      thinkingConfig: { thinkingBudget: 0 } // Flash doesn't need high budget for chat
     };
 
     try {
@@ -87,12 +91,11 @@ export const geminiService = {
     }
   },
 
-  // Fix: Generate speech using gemini-2.5-flash-preview-tts.
   async textToSpeech(text: string) {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
     try {
       let cleanText = text
-        .replace(/```[\s\S]*?```/g, ' [Code omitted] ') 
+        .replace(/```[\s\S]*?```/g, ' [Code content] ') 
         .replace(/[*_#`\[\]()]/g, ' ') 
         .replace(/[^\w\s.,?!']/g, ' ') 
         .replace(/\s+/g, ' ')
@@ -122,7 +125,6 @@ export const geminiService = {
   }
 };
 
-// Fix: Implement raw PCM audio decoding as required by the Live/TTS APIs.
 export async function decodeAudioData(base64: string, ctx: AudioContext): Promise<AudioBuffer> {
   const binaryString = atob(base64);
   const bytes = new Uint8Array(binaryString.length);

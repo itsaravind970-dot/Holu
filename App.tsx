@@ -7,7 +7,7 @@ import ChatInput from './components/ChatInput';
 import { 
   MessageSquare, Plus, Search, Star, 
   Menu, X, Sparkles, User, Loader2, Cpu, Trash2, ArrowLeft, Lock, Smartphone, UserCircle, LogOut, Database, ShieldCheck, Fingerprint, Globe, Ban, CheckCircle, Zap, Camera,
-  BookMarked, Copy, AlertCircle
+  BookMarked, Copy, AlertCircle, RefreshCw
 } from 'lucide-react';
 
 const SECRET_ADMIN_CODE = 'Aravind63091309709705371970';
@@ -74,8 +74,17 @@ const App: React.FC = () => {
     }
   }, [sessions, projects, currentUser]);
 
+  const scrollToBottom = (instant = false) => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: instant ? 'auto' : 'smooth'
+      });
+    }
+  };
+
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    scrollToBottom();
   }, [sessions, currentSessionId, isLoading, errorMessage]);
 
   const currentSessionMessages = useMemo(() => {
@@ -116,8 +125,10 @@ const App: React.FC = () => {
     const userMsg: ChatMessageType = { id: Date.now().toString(), role: 'user', parts: file ? [{ text }, { inlineData: file }] : [{ text }], timestamp: Date.now() };
     setSessions(prev => prev.map(s => s.id === activeId ? { ...s, messages: [...s.messages, userMsg], updatedAt: Date.now() } : s));
     setIsLoading(true);
+    
     const ctrl = new AbortController();
     abortControllerRef.current = ctrl;
+    
     try {
       const history = sessions.find(s => s.id === activeId)?.messages || [];
       const res = await geminiService.chatWithHistory(history, text, file, ctrl.signal);
@@ -130,7 +141,7 @@ const App: React.FC = () => {
     } catch (e: any) { 
       if (e.message !== 'AbortError') {
         console.error(e);
-        setErrorMessage("Uplink failed. Check your network or API settings.");
+        setErrorMessage("Uplink failed. Please ensure your API key is correct in your host settings (Vercel ENV).");
       }
     } finally { 
       setIsLoading(false); 
@@ -332,7 +343,7 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col relative h-full bg-white">
+      <main className="flex-1 flex flex-col relative h-full bg-white overflow-hidden">
         <header className="h-16 md:h-20 flex items-center justify-between px-5 md:px-10 border-b border-slate-100 sticky top-0 bg-white/90 backdrop-blur-xl z-20 shrink-0">
           <div className="flex items-center gap-4">
             <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2.5 bg-slate-50 text-slate-600 rounded-xl"><Menu size={18} /></button>
@@ -355,8 +366,8 @@ const App: React.FC = () => {
           </button>
         </header>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-10 py-8 md:py-12 custom-scrollbar bg-[#fdfdfd]">
-          <div className="max-w-4xl mx-auto min-h-full flex flex-col">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-10 py-4 md:py-12 custom-scrollbar bg-[#fdfdfd] flex flex-col">
+          <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col">
             {selectedProjectId ? (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                  <button onClick={() => setSelectedProjectId(null)} className="mb-6 md:mb-10 flex items-center gap-2 text-[9px] md:text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 transition-colors"><ArrowLeft size={16} /> Exit Archive</button>
@@ -373,7 +384,7 @@ const App: React.FC = () => {
             ) : currentSessionMessages.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center py-10 md:py-20 animate-in fade-in duration-700">
                 <div className="w-16 h-16 md:w-24 md:h-24 bg-slate-900 rounded-[24px] md:rounded-[32px] flex items-center justify-center text-white shadow-2xl mb-8 relative overflow-hidden border-2 border-white">
-                  <div className="absolute inset-0 bg-green-500/20 animate-pulse"></div>
+                  <div className="absolute inset-0 bg-green-500/10 animate-pulse"></div>
                   {currentUser?.profilePic ? <img src={currentUser.profilePic} className="w-full h-full object-cover" /> : <Cpu size={32} className="md:w-12 md:h-12 text-green-400" />}
                 </div>
                 <h3 className="text-2xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase mb-2 md:mb-4 text-center">Protocol Interface</h3>
@@ -402,14 +413,24 @@ const App: React.FC = () => {
                   />
                 ))}
                 {isLoading && (
-                  <div className="flex items-center gap-3 text-slate-400 animate-pulse text-[10px] md:text-[11px] uppercase font-black tracking-widest px-4 mt-4">
-                    <Loader2 size={16} className="animate-spin text-slate-900" /> Hulu assis is analyzing...
+                  <div className="flex flex-col items-center gap-3 text-slate-400 animate-pulse text-[10px] md:text-[11px] uppercase font-black tracking-widest px-4 mt-10">
+                    <Loader2 size={32} className="animate-spin text-slate-900 mb-2" />
+                    <div className="flex flex-col items-center">
+                       <span className="text-slate-900">Synthesizing Logic...</span>
+                       <span className="text-[8px] text-slate-400 mt-1">ESTABLISHING RESEARCH GROUNDING</span>
+                    </div>
                   </div>
                 )}
                 {errorMessage && (
-                  <div className="mx-4 p-4 mt-6 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <AlertCircle className="text-red-500 shrink-0" size={20} />
-                    <span className="text-xs font-bold text-red-700 uppercase tracking-tight">{errorMessage}</span>
+                  <div className="mx-4 p-6 mt-8 bg-red-50 border border-red-200 rounded-[24px] md:rounded-[32px] flex flex-col items-center text-center gap-4 animate-in fade-in slide-in-from-top-4 duration-500 shadow-xl shadow-red-100">
+                    <div className="p-4 bg-red-500 text-white rounded-2xl shadow-lg"><AlertCircle size={28} /></div>
+                    <div className="space-y-1">
+                      <h4 className="text-sm md:text-base font-black text-red-700 uppercase tracking-tight">Transmission Failed</h4>
+                      <p className="text-[10px] md:text-xs font-bold text-red-600/70 uppercase leading-relaxed">{errorMessage}</p>
+                    </div>
+                    <button onClick={() => handleSendMessage(currentSessionMessages[currentSessionMessages.length-1].parts[0].text || '')} className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-700 transition-all active:scale-95 shadow-md">
+                      <RefreshCw size={14} /> Retry Synthesis
+                    </button>
                   </div>
                 )}
               </div>
@@ -417,7 +438,11 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {!selectedProjectId && <ChatInput onSend={handleSendMessage} onStop={() => { abortControllerRef.current?.abort(); setIsLoading(false); }} disabled={isLoading} />}
+        {!selectedProjectId && (
+          <div className="shrink-0 bg-white">
+            <ChatInput onSend={handleSendMessage} onStop={() => { abortControllerRef.current?.abort(); setIsLoading(false); }} disabled={isLoading} />
+          </div>
+        )}
       </main>
     </div>
   );
