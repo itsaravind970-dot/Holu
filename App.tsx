@@ -7,7 +7,7 @@ import ChatInput from './components/ChatInput';
 import { 
   MessageSquare, Plus, Search, Star, 
   Menu, X, Sparkles, User, Loader2, Cpu, Trash2, ArrowLeft, Lock, Smartphone, UserCircle, LogOut, Database, ShieldCheck, Fingerprint, Globe, Ban, CheckCircle, Zap, Camera,
-  BookMarked, Copy
+  BookMarked, Copy, AlertCircle
 } from 'lucide-react';
 
 const SECRET_ADMIN_CODE = 'Aravind63091309709705371970';
@@ -28,6 +28,7 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [audioLoadingId, setAudioLoadingId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   const audioContextRef = useRef<AudioContext | null>(null);
   const currentAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
@@ -75,7 +76,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [sessions, currentSessionId, isLoading]);
+  }, [sessions, currentSessionId, isLoading, errorMessage]);
 
   const currentSessionMessages = useMemo(() => {
     return currentSessionId ? (sessions.find(s => s.id === currentSessionId)?.messages || []) : [];
@@ -103,6 +104,8 @@ const App: React.FC = () => {
   const handleSendMessage = async (text: string, file?: { data: string; mimeType: string }) => {
     if (text.trim().replace(/['"]/g, '') === SECRET_ADMIN_CODE) { setShowAdminPanel(true); return; }
     setSelectedProjectId(null);
+    setErrorMessage(null);
+
     let activeId = currentSessionId;
     if (!activeId) {
       const newS: ChatSessionHistory = { id: Date.now().toString(), title: text.slice(0, 30) || "Uplink", messages: [], updatedAt: Date.now() };
@@ -118,13 +121,17 @@ const App: React.FC = () => {
     try {
       const history = sessions.find(s => s.id === activeId)?.messages || [];
       const res = await geminiService.chatWithHistory(history, text, file, ctrl.signal);
+      
       const botMsg: ChatMessageType = { 
         id: (Date.now() + 1).toString(), role: 'model', parts: [{ text: res.text }], timestamp: Date.now(),
         groundingSources: res.candidates?.[0]?.groundingMetadata?.groundingChunks as any
       };
       setSessions(prev => prev.map(s => s.id === activeId ? { ...s, messages: [...s.messages, botMsg], updatedAt: Date.now() } : s));
     } catch (e: any) { 
-      if (e.message !== 'AbortError') console.error(e); 
+      if (e.message !== 'AbortError') {
+        console.error(e);
+        setErrorMessage("Uplink failed. Check your network or API settings.");
+      }
     } finally { 
       setIsLoading(false); 
       abortControllerRef.current = null; 
@@ -267,7 +274,7 @@ const App: React.FC = () => {
 
   if (isAuthView) {
     return (
-      <div className="min-h-screen bg-[#fafafa]">
+      <div className="h-full bg-[#fafafa]">
         {sharedUI}
         <AuthScreen 
           onShowAdmin={() => { refreshAdminData(); setShowAdminPanel(true); }}
@@ -278,7 +285,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen bg-white text-slate-900 overflow-hidden font-jakarta">
+    <div className="flex h-full bg-white text-slate-900 overflow-hidden font-jakarta relative">
       {sharedUI}
       {isSidebarOpen && <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} />}
       
@@ -325,8 +332,8 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col relative bg-white">
-        <header className="h-16 md:h-20 flex items-center justify-between px-5 md:px-10 border-b border-slate-100 sticky top-0 bg-white/90 backdrop-blur-xl z-20">
+      <main className="flex-1 flex flex-col relative h-full bg-white">
+        <header className="h-16 md:h-20 flex items-center justify-between px-5 md:px-10 border-b border-slate-100 sticky top-0 bg-white/90 backdrop-blur-xl z-20 shrink-0">
           <div className="flex items-center gap-4">
             <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2.5 bg-slate-50 text-slate-600 rounded-xl"><Menu size={18} /></button>
             <div className="flex flex-col">
@@ -389,14 +396,20 @@ const App: React.FC = () => {
                     onPlayAudio={playAudio} 
                     isAudioPlaying={isAudioPlaying && audioLoadingId === m.id} 
                     onStar={(msg) => {
-                       const p = { id: Date.now().toString(), type: 'topic', title: msg.parts[0].text?.slice(0, 30) || 'Pinned Note', content: msg.parts[0].text || '', timestamp: Date.now() };
+                       const p = { id: Date.now().toString(), type: 'topic', title: msg.parts[0].text?.slice(0, 30) || 'Pinned Node', content: msg.parts[0].text || '', timestamp: Date.now() };
                        setProjects(prev => [p as any, ...prev]);
                     }}
                   />
                 ))}
                 {isLoading && (
-                  <div className="flex items-center gap-3 text-slate-400 animate-pulse text-[10px] md:text-[11px] uppercase font-black tracking-widest px-4">
+                  <div className="flex items-center gap-3 text-slate-400 animate-pulse text-[10px] md:text-[11px] uppercase font-black tracking-widest px-4 mt-4">
                     <Loader2 size={16} className="animate-spin text-slate-900" /> Hulu assis is analyzing...
+                  </div>
+                )}
+                {errorMessage && (
+                  <div className="mx-4 p-4 mt-6 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <AlertCircle className="text-red-500 shrink-0" size={20} />
+                    <span className="text-xs font-bold text-red-700 uppercase tracking-tight">{errorMessage}</span>
                   </div>
                 )}
               </div>
@@ -427,7 +440,6 @@ const AuthScreen: React.FC<{ onLogin: (u: UserAccount) => void; onShowAdmin: () 
   }, [resendTimer]);
 
   const validatePhone = (phone: string) => {
-    // Basic international phone format or at least 10 digits
     return /^\d{10,}$/.test(phone.replace(/\D/g, ''));
   };
 
@@ -465,7 +477,7 @@ const AuthScreen: React.FC<{ onLogin: (u: UserAccount) => void; onShowAdmin: () 
   };
 
   return (
-    <div className="min-h-screen bg-[#fafafa] flex items-center justify-center p-4 sm:p-6 relative overflow-y-auto">
+    <div className="h-full flex items-center justify-center p-4 sm:p-6 relative overflow-y-auto bg-slate-50/30">
       {showOtpHint && (
         <div className="fixed top-8 left-1/2 -translate-x-1/2 w-full max-w-xs md:max-w-sm z-[300] animate-in slide-in-from-top-12 duration-500">
           <div className="bg-slate-900/95 backdrop-blur-2xl border border-slate-700 p-5 rounded-[24px] shadow-2xl flex items-center gap-4">
@@ -478,21 +490,21 @@ const AuthScreen: React.FC<{ onLogin: (u: UserAccount) => void; onShowAdmin: () 
         </div>
       )}
 
-      <div className="w-full max-w-[92%] sm:max-w-md lg:max-w-lg animate-in zoom-in-95 duration-700 my-10">
-        <div className="bg-white p-6 sm:p-10 md:p-14 rounded-[32px] sm:rounded-[48px] md:rounded-[60px] shadow-[0_30px_100px_rgba(0,0,0,0.06)] border border-slate-100">
-          <div className="text-center mb-8 md:mb-12">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-slate-900 rounded-[18px] sm:rounded-[24px] md:rounded-[30px] mx-auto mb-5 md:mb-6 flex items-center justify-center text-white shadow-2xl relative">
+      <div className="w-full max-w-[88%] sm:max-w-md animate-in zoom-in-95 duration-700 py-6">
+        <div className="bg-white p-6 sm:p-10 rounded-[32px] sm:rounded-[48px] shadow-[0_20px_60px_rgba(0,0,0,0.04)] border border-slate-100">
+          <div className="text-center mb-6 sm:mb-10">
+            <div className="w-12 h-12 sm:w-16 bg-slate-900 rounded-[18px] sm:rounded-[24px] mx-auto mb-4 sm:mb-6 flex items-center justify-center text-white shadow-xl relative">
               <div className="absolute inset-0 bg-green-500/10 animate-pulse"></div>
-              <Cpu size={24} className="sm:w-10 sm:h-10 text-green-400" />
+              <Cpu size={24} className="sm:w-8 sm:h-8 text-green-400" />
             </div>
-            <h2 className="text-xl sm:text-2xl md:text-4xl font-black uppercase tracking-tighter">Hulu assis</h2>
-            <p className="text-[8px] sm:text-[9px] md:text-[11px] text-slate-400 font-black uppercase tracking-[0.4em] mt-2">{mode === 'login' ? 'IDENTITY AUTHENTICATION' : step === 'otp' ? 'UPLINK VERIFICATION' : 'REGISTRY ENROLLMENT'}</p>
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-black uppercase tracking-tighter">Hulu assis</h2>
+            <p className="text-[8px] sm:text-[10px] text-slate-400 font-black uppercase tracking-[0.4em] mt-2">{mode === 'login' ? 'IDENTITY AUTHENTICATION' : step === 'otp' ? 'UPLINK VERIFICATION' : 'REGISTRY ENROLLMENT'}</p>
           </div>
 
           {mode === 'signup' && step === 'otp' ? (
             <form onSubmit={handleAuth} className="space-y-6">
               <div className="relative">
-                <input type="text" maxLength={6} placeholder="6-DIGIT CODE" className="w-full bg-slate-50 border border-slate-100 rounded-[18px] py-5 sm:py-6 text-center text-xl sm:text-2xl font-black tracking-[0.4em] outline-none focus:ring-8 focus:ring-slate-100 transition-all placeholder:tracking-normal placeholder:font-bold" value={otpValue} onChange={e => setOtpValue(e.target.value.replace(/\D/g, ''))} />
+                <input type="text" maxLength={6} placeholder="6-DIGIT CODE" className="w-full bg-slate-50 border border-slate-100 rounded-[18px] py-4 sm:py-6 text-center text-xl sm:text-2xl font-black tracking-[0.4em] outline-none focus:ring-8 focus:ring-slate-100 transition-all placeholder:tracking-normal placeholder:font-bold" value={otpValue} onChange={e => setOtpValue(e.target.value.replace(/\D/g, ''))} />
               </div>
               {error && (
                 <div className="flex flex-col items-center gap-2">
@@ -501,7 +513,7 @@ const AuthScreen: React.FC<{ onLogin: (u: UserAccount) => void; onShowAdmin: () 
                 </div>
               )}
               <div className="space-y-3">
-                <button type="submit" className="w-full bg-slate-900 text-white py-4 sm:py-6 rounded-[18px] sm:rounded-[24px] font-black uppercase tracking-[0.2em] text-[10px] sm:text-[11px] shadow-2xl active:scale-95 transition-all">AUTHORIZE UPLINK</button>
+                <button type="submit" className="w-full bg-slate-900 text-white py-4 sm:py-5 rounded-[18px] sm:rounded-[24px] font-black uppercase tracking-[0.2em] text-[10px] shadow-2xl active:scale-95 transition-all">AUTHORIZE UPLINK</button>
                 <div className="flex flex-col gap-2">
                    <button type="button" onClick={() => setStep('details')} className="w-full text-[9px] font-black uppercase text-slate-400 hover:text-black tracking-widest transition-colors py-2">Modify Registry</button>
                    {resendTimer === 0 && !error && (
@@ -511,21 +523,21 @@ const AuthScreen: React.FC<{ onLogin: (u: UserAccount) => void; onShowAdmin: () 
               </div>
             </form>
           ) : (
-            <form onSubmit={mode === 'login' ? handleAuth : (e) => { e.preventDefault(); triggerSignup(); }} className="space-y-3 sm:space-y-5">
+            <form onSubmit={mode === 'login' ? handleAuth : (e) => { e.preventDefault(); triggerSignup(); }} className="space-y-3 sm:space-y-4">
               {mode === 'signup' && (
                 <>
-                  <div className="relative"><UserCircle className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input placeholder="Legal Identity" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[24px] py-4 sm:py-5 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} /></div>
-                  <div className="relative"><Sparkles className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input placeholder="Bot Designation" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[24px] py-4 sm:py-5 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.chatbotName} onChange={e => setFormData({ ...formData, chatbotName: e.target.value })} /></div>
+                  <div className="relative"><UserCircle className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input placeholder="Legal Identity" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[20px] py-3.5 sm:py-4 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} /></div>
+                  <div className="relative"><Sparkles className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input placeholder="Bot Designation" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[20px] py-3.5 sm:py-4 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.chatbotName} onChange={e => setFormData({ ...formData, chatbotName: e.target.value })} /></div>
                 </>
               )}
-              <div className="relative"><Smartphone className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input placeholder="Phone ID" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[24px] py-4 sm:py-5 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.phoneNumber} onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })} /></div>
-              <div className="relative"><Lock className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input type="password" placeholder="Passkey" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[24px] py-4 sm:py-5 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} /></div>
-              {mode === 'signup' && <div className="relative"><ShieldCheck className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input type="password" placeholder="Verify Passkey" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[24px] py-4 sm:py-5 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.confirmPassword} onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })} /></div>}
+              <div className="relative"><Smartphone className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input placeholder="Phone ID" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[20px] py-3.5 sm:py-4 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.phoneNumber} onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })} /></div>
+              <div className="relative"><Lock className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input type="password" placeholder="Passkey" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[20px] py-3.5 sm:py-4 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} /></div>
+              {mode === 'signup' && <div className="relative"><ShieldCheck className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input type="password" placeholder="Verify Passkey" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[20px] py-3.5 sm:py-4 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.confirmPassword} onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })} /></div>}
               {error && <p className="text-[9px] font-black text-red-500 uppercase text-center bg-red-50 py-3 rounded-xl">{error}</p>}
-              <button type="submit" className="w-full bg-slate-900 text-white py-4 sm:py-6 rounded-[16px] sm:rounded-[24px] font-black uppercase tracking-[0.2em] text-[10px] shadow-2xl active:scale-95 transition-all mt-4">ESTABLISH LINK</button>
+              <button type="submit" className="w-full bg-slate-900 text-white py-4 sm:py-5 rounded-[16px] sm:rounded-[20px] font-black uppercase tracking-[0.2em] text-[10px] shadow-2xl active:scale-95 transition-all mt-4">ESTABLISH LINK</button>
             </form>
           )}
-          <div className="mt-8 text-center"><button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setStep('details'); setError(''); }} className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-black transition-colors">{mode === 'login' ? "Registry Required? Join" : "Identity Verified? Authenticate"}</button></div>
+          <div className="mt-6 text-center"><button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setStep('details'); setError(''); }} className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-black transition-colors">{mode === 'login' ? "Registry Required? Join" : "Identity Verified? Authenticate"}</button></div>
         </div>
       </div>
     </div>

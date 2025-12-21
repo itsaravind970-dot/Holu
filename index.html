@@ -10,6 +10,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+      :root {
+        --sat: env(safe-area-inset-top);
+        --sar: env(safe-area-inset-right);
+        --sab: env(safe-area-inset-bottom);
+        --sal: env(safe-area-inset-left);
+      }
       body {
         font-family: 'Plus Jakarta Sans', sans-serif;
         background-color: #fafafa;
@@ -17,6 +23,10 @@
         padding: 0;
         -webkit-tap-highlight-color: transparent;
         overflow: hidden;
+        height: 100dvh; /* Dynamic viewport height */
+      }
+      #root {
+        height: 100%;
       }
       .custom-scrollbar::-webkit-scrollbar { width: 3px; }
       .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
