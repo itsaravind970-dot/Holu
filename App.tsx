@@ -39,21 +39,25 @@ const App: React.FC = () => {
 
   // Persistence & Security Check
   useEffect(() => {
-    const storedUser = localStorage.getItem('hulu_current_user');
-    if (storedUser) {
-      const user = JSON.parse(storedUser);
-      const accounts: UserAccount[] = JSON.parse(localStorage.getItem('hulu_accounts') || '[]');
-      const freshUser = accounts.find(a => a.id === user.id);
-      
-      if (freshUser && freshUser.isBlocked) {
-        handleLogout();
-      } else {
-        setCurrentUser(freshUser || user);
-        setIsAuthView(false);
-        loadUserData(user.id);
+    try {
+      const storedUser = localStorage.getItem('hulu_current_user');
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        const accounts: UserAccount[] = JSON.parse(localStorage.getItem('hulu_accounts') || '[]');
+        const freshUser = accounts.find(a => a.id === user.id);
+        
+        if (freshUser && freshUser.isBlocked) {
+          handleLogout();
+        } else {
+          setCurrentUser(freshUser || user);
+          setIsAuthView(false);
+          loadUserData(user.id);
+        }
       }
+      refreshAdminData();
+    } catch (e) {
+      console.error("Storage Error:", e);
     }
-    refreshAdminData();
   }, []);
 
   const refreshAdminData = () => {
@@ -92,6 +96,7 @@ const App: React.FC = () => {
     }
   }, [sessions, currentSessionId, isLoading, selectedProjectId]);
 
+  // Unified Search Logic
   const filteredSessions = useMemo(() => {
     if (!searchQuery) return sessions;
     const query = searchQuery.toLowerCase();
@@ -277,7 +282,6 @@ const App: React.FC = () => {
   const currentSessionMessages = sessions.find(s => s.id === currentSessionId)?.messages || [];
   const selectedProject = projects.find(p => p.id === selectedProjectId);
 
-  // SHARED UI ELEMENTS
   const sharedUI = (
     <>
       {/* Admin Panel */}
@@ -451,7 +455,7 @@ const App: React.FC = () => {
           <div className="p-8 pb-4">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 bg-slate-900 rounded-2xl flex items-center justify-center text-white shadow-xl overflow-hidden">
+                 <div className="w-10 h-10 bg-slate-900 rounded-full flex items-center justify-center text-white shadow-xl overflow-hidden border border-slate-200">
                    {currentUser?.profilePic ? (
                      <img src={currentUser.profilePic} alt="profile" className="w-full h-full object-cover" />
                    ) : (
@@ -470,7 +474,7 @@ const App: React.FC = () => {
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search encrypted nodes..."
+                placeholder="Search history and pins..."
                 className="w-full bg-white border border-slate-200 rounded-[20px] py-3 pl-11 pr-10 text-[11px] font-bold outline-none transition-all focus:ring-4 focus:ring-slate-100"
               />
               {isSearching && (
@@ -484,21 +488,21 @@ const App: React.FC = () => {
             </div>
 
             <nav className="flex gap-1 bg-slate-200/40 p-1.5 rounded-[20px] mb-6">
-              <button onClick={() => setView('chats')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[14px] text-[10px] font-black uppercase tracking-wider transition-all ${view === 'chats' && !isSearching ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}><History size={12} /> History</button>
-              <button onClick={() => setView('projects')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[14px] text-[10px] font-black uppercase tracking-wider transition-all ${view === 'projects' && !isSearching ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}><BookMarked size={12} /> Pins</button>
+              <button onClick={() => { setView('chats'); setSearchQuery(''); }} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[14px] text-[10px] font-black uppercase tracking-wider transition-all ${view === 'chats' && !isSearching ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}><History size={12} /> History</button>
+              <button onClick={() => { setView('projects'); setSearchQuery(''); }} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[14px] text-[10px] font-black uppercase tracking-wider transition-all ${view === 'projects' && !isSearching ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}><BookMarked size={12} /> Pins</button>
             </nav>
             <button onClick={() => { setCurrentSessionId(null); setSelectedProjectId(null); setIsSidebarOpen(false); setView('chats'); setSearchQuery(''); }} className="w-full flex items-center justify-center gap-3 bg-slate-900 text-white py-4 rounded-[20px] text-[11px] font-black uppercase tracking-widest shadow-xl hover:bg-black transition-all active:scale-[0.98]"><Plus size={18} /> New Session</button>
           </div>
           
           <div className="flex-1 overflow-y-auto custom-scrollbar px-5 pb-8">
             {isSearching ? (
-              <div className="space-y-6">
+              <div className="space-y-6 animate-in fade-in duration-300">
                 {filteredSessions.length > 0 && (
                   <div>
-                    <h3 className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-3 px-4">Chats ({filteredSessions.length})</h3>
+                    <h3 className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-3 px-4">Chat Matches ({filteredSessions.length})</h3>
                     <div className="space-y-1.5">
                       {filteredSessions.map(s => (
-                        <button key={s.id} onClick={() => { setCurrentSessionId(s.id); setSelectedProjectId(null); setIsSidebarOpen(false); setSearchQuery(''); }} className="w-full flex items-center gap-4 p-4 rounded-[20px] text-left transition-all hover:bg-white/60">
+                        <button key={s.id} onClick={() => { setCurrentSessionId(s.id); setSelectedProjectId(null); setIsSidebarOpen(false); setSearchQuery(''); }} className="w-full flex items-center gap-4 p-4 rounded-[20px] text-left transition-all hover:bg-white shadow-sm ring-1 ring-slate-100">
                           <div className="p-2 rounded-xl bg-slate-100 text-slate-400">
                             <MessageSquare size={14} />
                           </div>
@@ -510,10 +514,10 @@ const App: React.FC = () => {
                 )}
                 {filteredProjects.length > 0 && (
                   <div>
-                    <h3 className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-3 px-4">Pinned ({filteredProjects.length})</h3>
+                    <h3 className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-3 px-4">Pin Matches ({filteredProjects.length})</h3>
                     <div className="space-y-1.5">
                       {filteredProjects.map(p => (
-                        <button key={p.id} onClick={() => { setSelectedProjectId(p.id); setIsSidebarOpen(false); setSearchQuery(''); }} className="w-full p-4 bg-white rounded-[20px] border border-slate-100 hover:border-slate-300 transition-all text-left">
+                        <button key={p.id} onClick={() => { setSelectedProjectId(p.id); setIsSidebarOpen(false); setSearchQuery(''); }} className="w-full p-4 bg-white rounded-[20px] border border-slate-100 hover:border-slate-300 transition-all text-left shadow-sm">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-[9px] font-black text-green-600 uppercase">{p.type}</span>
                             <Star size={10} fill="currentColor" className="text-yellow-500" />
@@ -527,7 +531,7 @@ const App: React.FC = () => {
                 {filteredSessions.length === 0 && filteredProjects.length === 0 && (
                   <div className="text-center py-10 px-4">
                     <SearchCode size={32} className="mx-auto text-slate-200 mb-3" />
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No nodes found for your query.</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No nodes found for "{searchQuery}"</p>
                   </div>
                 )}
               </div>
@@ -614,7 +618,7 @@ const App: React.FC = () => {
               </div>
             ) : currentSessionMessages.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center py-20 animate-in fade-in duration-1000">
-                <div className="w-24 h-24 bg-slate-900 rounded-full flex items-center justify-center shadow-2xl mb-10 transform hover:scale-110 transition-transform cursor-default relative overflow-hidden">
+                <div className="w-24 h-24 bg-slate-900 rounded-full flex items-center justify-center shadow-2xl mb-10 transform hover:scale-110 transition-transform cursor-default relative overflow-hidden border-2 border-slate-200">
                   <div className="absolute inset-0 bg-green-500/20 rounded-full animate-ping opacity-20"></div>
                   {currentUser?.profilePic ? (
                     <img src={currentUser.profilePic} alt="profile" className="w-full h-full object-cover" />
