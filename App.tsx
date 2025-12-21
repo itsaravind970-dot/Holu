@@ -6,7 +6,7 @@ import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import { 
   MessageSquare, Plus, Search, Terminal, Star, 
-  Menu, X, Sparkles, User, AlertTriangle, Loader2, Cpu, History, BookMarked, Copy, Trash2, ArrowLeft, CheckCircle2, Lock, Smartphone, UserCircle, LogOut, Eye, EyeOff, Database, ShieldCheck, Activity, Fingerprint, Globe, ShieldAlert, Ban, CheckCircle, Shield, Info, RefreshCcw, Zap, Camera, Upload
+  Menu, X, Sparkles, User, AlertTriangle, Loader2, Cpu, History, BookMarked, Copy, Trash2, ArrowLeft, CheckCircle2, Lock, Smartphone, UserCircle, LogOut, Eye, EyeOff, Database, ShieldCheck, Activity, Fingerprint, Globe, ShieldAlert, Ban, CheckCircle, Shield, Info, RefreshCcw, Zap, Camera, Upload, SearchCode
 } from 'lucide-react';
 
 const SECRET_ADMIN_CODE = 'Aravind63091309709705371970';
@@ -94,11 +94,21 @@ const App: React.FC = () => {
 
   const filteredSessions = useMemo(() => {
     if (!searchQuery) return sessions;
+    const query = searchQuery.toLowerCase();
     return sessions.filter(s => 
-      s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.messages.some(m => m.parts[0].text?.toLowerCase().includes(searchQuery.toLowerCase()))
+      s.title.toLowerCase().includes(query) ||
+      s.messages.some(m => m.parts.some(p => p.text?.toLowerCase().includes(query)))
     );
   }, [sessions, searchQuery]);
+
+  const filteredProjects = useMemo(() => {
+    if (!searchQuery) return projects;
+    const query = searchQuery.toLowerCase();
+    return projects.filter(p => 
+      p.title.toLowerCase().includes(query) ||
+      p.content.toLowerCase().includes(query)
+    );
+  }, [projects, searchQuery]);
 
   const ensureActiveSession = (title: string): string => {
     if (currentSessionId) return currentSessionId;
@@ -267,8 +277,10 @@ const App: React.FC = () => {
   const currentSessionMessages = sessions.find(s => s.id === currentSessionId)?.messages || [];
   const selectedProject = projects.find(p => p.id === selectedProjectId);
 
+  // SHARED UI ELEMENTS
   const sharedUI = (
     <>
+      {/* Admin Panel */}
       {showAdminPanel && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-0 md:p-10 bg-black/98 backdrop-blur-3xl animate-in fade-in duration-500">
           <div className="bg-[#0b0f19] w-full h-full md:rounded-[40px] shadow-[0_0_150px_rgba(34,197,94,0.15)] flex flex-col border border-slate-800 overflow-hidden">
@@ -337,13 +349,14 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {/* User Profile Modal */}
       {showProfile && currentUser && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-xl animate-in fade-in duration-300">
           <div className="bg-white rounded-[48px] w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-100">
              <div className="p-10 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
                 <div className="flex items-center gap-5">
                    <div className="relative group">
-                     <div className="w-20 h-20 bg-slate-900 rounded-[28px] flex items-center justify-center text-white shadow-xl overflow-hidden border-4 border-white">
+                     <div className="w-20 h-20 bg-slate-900 rounded-full flex items-center justify-center text-white shadow-xl overflow-hidden border-4 border-white">
                         {currentUser.profilePic ? (
                           <img src={currentUser.profilePic} alt={currentUser.username} className="w-full h-full object-cover" />
                         ) : (
@@ -352,7 +365,7 @@ const App: React.FC = () => {
                      </div>
                      <button 
                        onClick={() => profilePicInputRef.current?.click()}
-                       className="absolute -bottom-2 -right-2 bg-slate-900 text-white p-2 rounded-xl shadow-lg border border-white hover:scale-110 transition-transform active:scale-95"
+                       className="absolute bottom-0 right-0 bg-slate-900 text-white p-2 rounded-full shadow-lg border-2 border-white hover:scale-110 transition-transform active:scale-95"
                      >
                        <Camera size={16} />
                      </button>
@@ -423,6 +436,8 @@ const App: React.FC = () => {
     );
   }
 
+  const isSearching = searchQuery.length > 0;
+
   return (
     <div className="flex h-screen bg-white text-slate-900 overflow-hidden font-jakarta">
       {sharedUI}
@@ -433,7 +448,7 @@ const App: React.FC = () => {
 
       <aside className={`fixed inset-y-0 left-0 z-50 w-80 bg-slate-50 border-r border-slate-200 transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex flex-col h-full">
-          <div className="p-8">
+          <div className="p-8 pb-4">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-3">
                  <div className="w-10 h-10 bg-slate-900 rounded-2xl flex items-center justify-center text-white shadow-xl overflow-hidden">
@@ -451,24 +466,72 @@ const App: React.FC = () => {
             </div>
             
             <div className="relative mb-6">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+              <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${isSearching ? 'text-green-500' : 'text-slate-400'}`} size={14} />
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search encrypted nodes..."
-                className="w-full bg-white border border-slate-200 rounded-[20px] py-3 pl-11 pr-4 text-[11px] font-bold outline-none transition-all focus:ring-4 focus:ring-slate-100"
+                className="w-full bg-white border border-slate-200 rounded-[20px] py-3 pl-11 pr-10 text-[11px] font-bold outline-none transition-all focus:ring-4 focus:ring-slate-100"
               />
+              {isSearching && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900"
+                >
+                  <X size={12} />
+                </button>
+              )}
             </div>
 
             <nav className="flex gap-1 bg-slate-200/40 p-1.5 rounded-[20px] mb-6">
-              <button onClick={() => setView('chats')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[14px] text-[10px] font-black uppercase tracking-wider transition-all ${view === 'chats' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}><History size={12} /> History</button>
-              <button onClick={() => setView('projects')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[14px] text-[10px] font-black uppercase tracking-wider transition-all ${view === 'projects' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}><BookMarked size={12} /> Pins</button>
+              <button onClick={() => setView('chats')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[14px] text-[10px] font-black uppercase tracking-wider transition-all ${view === 'chats' && !isSearching ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}><History size={12} /> History</button>
+              <button onClick={() => setView('projects')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-[14px] text-[10px] font-black uppercase tracking-wider transition-all ${view === 'projects' && !isSearching ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}><BookMarked size={12} /> Pins</button>
             </nav>
-            <button onClick={() => { setCurrentSessionId(null); setSelectedProjectId(null); setIsSidebarOpen(false); setView('chats'); }} className="w-full flex items-center justify-center gap-3 bg-slate-900 text-white py-4 rounded-[20px] text-[11px] font-black uppercase tracking-widest shadow-xl hover:bg-black transition-all active:scale-[0.98]"><Plus size={18} /> New Session</button>
+            <button onClick={() => { setCurrentSessionId(null); setSelectedProjectId(null); setIsSidebarOpen(false); setView('chats'); setSearchQuery(''); }} className="w-full flex items-center justify-center gap-3 bg-slate-900 text-white py-4 rounded-[20px] text-[11px] font-black uppercase tracking-widest shadow-xl hover:bg-black transition-all active:scale-[0.98]"><Plus size={18} /> New Session</button>
           </div>
           
           <div className="flex-1 overflow-y-auto custom-scrollbar px-5 pb-8">
-            {view === 'chats' ? (
+            {isSearching ? (
+              <div className="space-y-6">
+                {filteredSessions.length > 0 && (
+                  <div>
+                    <h3 className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-3 px-4">Chats ({filteredSessions.length})</h3>
+                    <div className="space-y-1.5">
+                      {filteredSessions.map(s => (
+                        <button key={s.id} onClick={() => { setCurrentSessionId(s.id); setSelectedProjectId(null); setIsSidebarOpen(false); setSearchQuery(''); }} className="w-full flex items-center gap-4 p-4 rounded-[20px] text-left transition-all hover:bg-white/60">
+                          <div className="p-2 rounded-xl bg-slate-100 text-slate-400">
+                            <MessageSquare size={14} />
+                          </div>
+                          <span className="text-[11px] font-black text-slate-700 truncate uppercase tracking-tighter">{s.title || 'Blank Uplink'}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {filteredProjects.length > 0 && (
+                  <div>
+                    <h3 className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-3 px-4">Pinned ({filteredProjects.length})</h3>
+                    <div className="space-y-1.5">
+                      {filteredProjects.map(p => (
+                        <button key={p.id} onClick={() => { setSelectedProjectId(p.id); setIsSidebarOpen(false); setSearchQuery(''); }} className="w-full p-4 bg-white rounded-[20px] border border-slate-100 hover:border-slate-300 transition-all text-left">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[9px] font-black text-green-600 uppercase">{p.type}</span>
+                            <Star size={10} fill="currentColor" className="text-yellow-500" />
+                          </div>
+                          <p className="text-[11px] font-bold text-slate-800 truncate">{p.title}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {filteredSessions.length === 0 && filteredProjects.length === 0 && (
+                  <div className="text-center py-10 px-4">
+                    <SearchCode size={32} className="mx-auto text-slate-200 mb-3" />
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No nodes found for your query.</p>
+                  </div>
+                )}
+              </div>
+            ) : view === 'chats' ? (
               <div className="space-y-1.5">
                 {filteredSessions.map(s => (
                   <button key={s.id} onClick={() => { setCurrentSessionId(s.id); setSelectedProjectId(null); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-4 p-4 rounded-[20px] text-left transition-all ${currentSessionId === s.id && !selectedProjectId ? 'bg-white shadow-md ring-1 ring-slate-200/50' : 'hover:bg-white/60'}`}>
@@ -519,7 +582,7 @@ const App: React.FC = () => {
                   <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">{currentUser?.username}</span>
                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">View Profile</span>
                </div>
-               <div className="w-10 h-10 rounded-[18px] bg-slate-900 flex items-center justify-center text-white shadow-lg border-2 border-white overflow-hidden">
+               <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white shadow-lg border-2 border-white overflow-hidden">
                  {currentUser?.profilePic ? (
                    <img src={currentUser.profilePic} alt="profile" className="w-full h-full object-cover" />
                  ) : (
@@ -551,8 +614,8 @@ const App: React.FC = () => {
               </div>
             ) : currentSessionMessages.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center py-20 animate-in fade-in duration-1000">
-                <div className="w-24 h-24 bg-slate-900 rounded-[40px] flex items-center justify-center shadow-2xl mb-10 transform hover:scale-110 transition-transform cursor-default relative overflow-hidden">
-                  <div className="absolute inset-0 bg-green-500/20 rounded-[40px] animate-ping opacity-20"></div>
+                <div className="w-24 h-24 bg-slate-900 rounded-full flex items-center justify-center shadow-2xl mb-10 transform hover:scale-110 transition-transform cursor-default relative overflow-hidden">
+                  <div className="absolute inset-0 bg-green-500/20 rounded-full animate-ping opacity-20"></div>
                   {currentUser?.profilePic ? (
                     <img src={currentUser.profilePic} alt="profile" className="w-full h-full object-cover" />
                   ) : (
