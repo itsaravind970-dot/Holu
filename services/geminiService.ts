@@ -2,7 +2,19 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { ChatMessage } from "../types";
 
-const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Safety check for environment variables to prevent "dead screen" crashes
+const getApiKey = () => {
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+      return process.env.API_KEY;
+    }
+  } catch (e) {
+    console.warn("Hulu assis: Environment process access restricted.");
+  }
+  return "";
+};
+
+const getAI = () => new GoogleGenAI({ apiKey: getApiKey() });
 
 const MASTER_PROMPT = `You are "Hulu assis", a world-class AI companion engineered for elite performance, deep reasoning, and precise analysis.
 
@@ -31,6 +43,11 @@ export const geminiService = {
     media?: { data: string; mimeType: string },
     signal?: AbortSignal
   ) {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      throw new Error("Missing Security Uplink Key. Please configure API_KEY.");
+    }
+    
     const ai = getAI();
     
     const contents = history.map(msg => ({
@@ -67,7 +84,6 @@ export const geminiService = {
     };
 
     try {
-      // Note: If the SDK doesn't natively support signal, we handle the abortion at the App level
       const response = await ai.models.generateContent({
         model: modelName,
         contents: contents as any,
@@ -89,6 +105,9 @@ export const geminiService = {
   },
 
   async textToSpeech(text: string) {
+    const apiKey = getApiKey();
+    if (!apiKey) return null;
+
     const ai = getAI();
     try {
       let cleanText = text
