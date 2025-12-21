@@ -1,11 +1,10 @@
 
-// services/geminiService.ts
 import { GoogleGenAI, Modality } from "@google/genai";
 import { ChatMessage } from "../types";
 
-const MASTER_PROMPT = `You are "Hulu assis", a professional AI assistant created by Aravind. 
-Your goal is to provide clear, helpful, and high-quality responses. 
-Always prioritize accuracy and maintain a helpful tone.`;
+const MASTER_PROMPT = `You are "Hulu assis", a world-class AI companion. 
+Always provide precise, high-quality, and helpful answers. 
+Your founder is Aravind. Be professional and intelligent.`;
 
 export const geminiService = {
   async chatWithHistory(
@@ -15,7 +14,6 @@ export const geminiService = {
     signal?: AbortSignal
   ) {
     const apiKey = process.env.API_KEY;
-    
     if (!apiKey || apiKey === "undefined") {
       throw new Error("API_KEY_MISSING");
     }
@@ -34,27 +32,19 @@ export const geminiService = {
     const currentParts: any[] = [{ text: newMessage }];
     if (media) {
       currentParts.push({
-        inlineData: {
-          data: media.data,
-          mimeType: media.mimeType
-        }
+        inlineData: { data: media.data, mimeType: media.mimeType }
       });
     }
 
-    contents.push({
-      role: 'user',
-      parts: currentParts
-    });
+    contents.push({ role: 'user', parts: currentParts });
 
     try {
-      // Using gemini-3-flash-preview for fastest and most reliable response
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: contents as any,
         config: {
           systemInstruction: MASTER_PROMPT,
-          temperature: 0.8,
-          topP: 0.9,
+          temperature: 0.7,
         }
       });
       
@@ -73,7 +63,7 @@ export const geminiService = {
     
     const ai = new GoogleGenAI({ apiKey });
     try {
-      const cleanText = text.replace(/[`*#]/g, '').slice(0, 500);
+      const cleanText = text.replace(/[`*#]/g, '').slice(0, 300);
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
         contents: [{ parts: [{ text: cleanText }] }],
@@ -84,7 +74,6 @@ export const geminiService = {
           },
         },
       });
-
       const audioPart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
       return audioPart?.inlineData?.data || null;
     } catch (error) {
