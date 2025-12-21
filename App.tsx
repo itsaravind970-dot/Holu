@@ -5,8 +5,9 @@ import { geminiService, decodeAudioData } from './services/geminiService';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import { 
-  MessageSquare, Plus, Search, Terminal, Star, 
-  Menu, X, Sparkles, User, AlertTriangle, Loader2, Cpu, History, BookMarked, Copy, Trash2, ArrowLeft, CheckCircle2, Lock, Smartphone, UserCircle, LogOut, Eye, EyeOff, Database, ShieldCheck, Activity, Fingerprint, Globe, ShieldAlert, Ban, CheckCircle, Shield, Info, RefreshCcw, Zap, Camera, Upload, SearchCode
+  MessageSquare, Plus, Search, Star, 
+  Menu, X, Sparkles, User, Loader2, Cpu, Trash2, ArrowLeft, Lock, Smartphone, UserCircle, LogOut, Database, ShieldCheck, Fingerprint, Globe, Ban, CheckCircle, Zap, Camera,
+  BookMarked, Copy
 } from 'lucide-react';
 
 const SECRET_ADMIN_CODE = 'Aravind63091309709705371970';
@@ -165,7 +166,7 @@ const App: React.FC = () => {
                 <div className="p-3 md:p-4 bg-green-500/10 rounded-2xl text-green-500 border border-green-500/20"><ShieldCheck size={24} className="md:w-9 md:h-9" /></div>
                 <div>
                   <h2 className="text-base md:text-2xl font-black uppercase tracking-tight text-white leading-tight">Security Command</h2>
-                  <p className="text-[7px] md:text-[10px] font-black text-green-500 uppercase tracking-widest mt-0.5">ARAVIND MASTER PORTAL</p>
+                  <p className="text-[7px] md:text-[10px] font-black text-green-500 uppercase tracking-widest mt-0.5">MASTER PORTAL ACCESS</p>
                 </div>
               </div>
               <button onClick={() => setShowAdminPanel(false)} className="p-3 md:p-5 bg-slate-800 text-slate-400 rounded-xl md:rounded-2xl hover:text-white transition-all"><X size={20} className="md:w-6 md:h-6" /></button>
@@ -190,7 +191,7 @@ const App: React.FC = () => {
                           localStorage.setItem('hulu_accounts', JSON.stringify(updated));
                           refreshAdminData();
                         }} className={`p-2 rounded-xl ${acc.isBlocked ? 'text-green-500 bg-green-500/10' : 'text-red-500 bg-red-500/10'}`}>{acc.isBlocked ? <CheckCircle size={14} /> : <Ban size={14} />}</button>
-                        <button onClick={() => { if(confirm('Purge identity?')) {
+                        <button onClick={() => { if(confirm('Purge identity node?')) {
                           const updated = adminAccounts.filter(a => a.id !== acc.id);
                           localStorage.setItem('hulu_accounts', JSON.stringify(updated));
                           refreshAdminData();
@@ -203,7 +204,7 @@ const App: React.FC = () => {
                         <span className="text-[10px] md:text-sm font-bold text-slate-300">{acc.phoneNumber}</span>
                       </div>
                       <div className="bg-green-500/5 p-3 md:p-4 rounded-xl md:rounded-2xl border border-green-500/10 flex justify-between items-center">
-                        <span className="text-[7px] md:text-[9px] text-green-500 uppercase font-black">Master Key</span>
+                        <span className="text-[7px] md:text-[9px] text-green-500 uppercase font-black">Access Pass</span>
                         <span className="text-[10px] md:text-sm font-mono text-green-400 font-bold tracking-widest">{acc.password}</span>
                       </div>
                     </div>
@@ -236,7 +237,7 @@ const App: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="font-black text-lg md:text-2xl uppercase tracking-tighter leading-none">{currentUser.username}</h3>
-                    <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-2">ACTIVE SECURITY NODE</p>
+                    <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-2">SECURE REGISTRY NODE</p>
                   </div>
                 </div>
                 <button onClick={() => setShowProfile(false)} className="p-3 bg-white border border-slate-100 rounded-2xl hover:bg-slate-50 transition-all active:scale-95"><X size={18} /></button>
@@ -244,8 +245,8 @@ const App: React.FC = () => {
              <div className="p-6 md:p-10 space-y-3">
                 {[
                   { label: 'Uplink Phone', value: currentUser.phoneNumber, icon: Smartphone },
-                  { label: 'Proxy Identity', value: currentUser.chatbotName, icon: Sparkles },
-                  { label: 'Access Key', value: currentUser.password, icon: Lock },
+                  { label: 'Bot Identity', value: currentUser.chatbotName, icon: Sparkles },
+                  { label: 'Access Pass', value: currentUser.password, icon: Lock },
                   { label: 'Registry ID', value: currentUser.id, icon: Database },
                 ].map((item, idx) => (
                   <div key={idx} className="flex items-center gap-4 p-4 md:p-5 bg-slate-50/80 rounded-[20px] md:rounded-[28px] border border-slate-100/50">
@@ -266,7 +267,7 @@ const App: React.FC = () => {
 
   if (isAuthView) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-[#fafafa]">
         {sharedUI}
         <AuthScreen 
           onShowAdmin={() => { refreshAdminData(); setShowAdminPanel(true); }}
@@ -368,10 +369,10 @@ const App: React.FC = () => {
                   <div className="absolute inset-0 bg-green-500/20 animate-pulse"></div>
                   {currentUser?.profilePic ? <img src={currentUser.profilePic} className="w-full h-full object-cover" /> : <Cpu size={32} className="md:w-12 md:h-12 text-green-400" />}
                 </div>
-                <h3 className="text-2xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase mb-2 md:mb-4 text-center">Ready for Analysis</h3>
-                <p className="text-[9px] md:text-[11px] text-slate-400 font-black uppercase tracking-[0.4em] text-center mb-10 md:mb-16">ELITE INTELLIGENCE INTERFACE ACTIVE</p>
+                <h3 className="text-2xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase mb-2 md:mb-4 text-center">Protocol Interface</h3>
+                <p className="text-[9px] md:text-[11px] text-slate-400 font-black uppercase tracking-[0.4em] text-center mb-10 md:mb-16">SECURE INTELLIGENCE UPLINK ACTIVE</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 w-full max-w-2xl px-4">
-                  {[`Analyze this code variant`, `Formulate security strategy`, `Synthesize local reports`, `Interpret visual feed`].map((tip, i) => (
+                  {[`Analyze security reports`, `Synthesize localized data`, `Propose strategic plans`, `Interpret code variants`].map((tip, i) => (
                     <button key={i} onClick={() => handleSendMessage(tip)} className="text-left p-4 md:p-6 rounded-[22px] md:rounded-[32px] border border-slate-100 hover:border-slate-900 hover:bg-white bg-slate-50/50 transition-all font-bold text-xs md:text-sm text-slate-800 flex items-center justify-between group">
                       "{tip}"
                       <Zap size={14} className="text-slate-200 group-hover:text-green-500 transition-colors" />
@@ -388,14 +389,14 @@ const App: React.FC = () => {
                     onPlayAudio={playAudio} 
                     isAudioPlaying={isAudioPlaying && audioLoadingId === m.id} 
                     onStar={(msg) => {
-                       const p = { id: Date.now().toString(), type: 'topic', title: msg.parts[0].text?.slice(0, 30) || 'Pinned Node', content: msg.parts[0].text || '', timestamp: Date.now() };
+                       const p = { id: Date.now().toString(), type: 'topic', title: msg.parts[0].text?.slice(0, 30) || 'Pinned Note', content: msg.parts[0].text || '', timestamp: Date.now() };
                        setProjects(prev => [p as any, ...prev]);
                     }}
                   />
                 ))}
                 {isLoading && (
                   <div className="flex items-center gap-3 text-slate-400 animate-pulse text-[10px] md:text-[11px] uppercase font-black tracking-widest px-4">
-                    <Loader2 size={16} className="animate-spin text-slate-900" /> Hulu assis is synthesizing...
+                    <Loader2 size={16} className="animate-spin text-slate-900" /> Hulu assis is analyzing...
                   </div>
                 )}
               </div>
@@ -426,14 +427,14 @@ const AuthScreen: React.FC<{ onLogin: (u: UserAccount) => void; onShowAdmin: () 
   }, [resendTimer]);
 
   const validatePhone = (phone: string) => {
-    // Simple validation: should be at least 10 digits
+    // Basic international phone format or at least 10 digits
     return /^\d{10,}$/.test(phone.replace(/\D/g, ''));
   };
 
   const triggerSignup = () => {
     if (!formData.username || !formData.phoneNumber || !formData.password || !formData.chatbotName) return setError('ALL FIELDS MANDATORY.');
     if (!validatePhone(formData.phoneNumber)) return setError('WRONG MOBILE NUMBER FORMAT.');
-    if (formData.password !== formData.confirmPassword) return setError('ACCESS KEY MISMATCH.');
+    if (formData.password !== formData.confirmPassword) return setError('ACCESS PASS MISMATCH.');
     
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedOtp(code);
@@ -452,8 +453,8 @@ const AuthScreen: React.FC<{ onLogin: (u: UserAccount) => void; onShowAdmin: () 
     const accs = JSON.parse(localStorage.getItem('hulu_accounts') || '[]');
     if (mode === 'login') {
       const u = accs.find((a: any) => a.phoneNumber === formData.phoneNumber && a.password === formData.password);
-      if (u) { if (u.isBlocked) setError('NODE BLACKLISTED.'); else onLogin(u); }
-      else setError('INCORRECT MOBILE NUMBER OR ACCESS KEY.');
+      if (u) { if (u.isBlocked) setError('IDENTITY BLACKLISTED.'); else onLogin(u); }
+      else setError('INCORRECT MOBILE OR PASSCODE.');
     } else {
       if (otpValue === generatedOtp) {
         const u = { id: Date.now().toString(), ...formData, createdAt: Date.now(), isBlocked: false };
@@ -464,7 +465,7 @@ const AuthScreen: React.FC<{ onLogin: (u: UserAccount) => void; onShowAdmin: () 
   };
 
   return (
-    <div className="min-h-screen bg-[#fafafa] flex items-center justify-center p-4 md:p-10 relative overflow-y-auto">
+    <div className="min-h-screen bg-[#fafafa] flex items-center justify-center p-4 sm:p-6 relative overflow-y-auto">
       {showOtpHint && (
         <div className="fixed top-8 left-1/2 -translate-x-1/2 w-full max-w-xs md:max-w-sm z-[300] animate-in slide-in-from-top-12 duration-500">
           <div className="bg-slate-900/95 backdrop-blur-2xl border border-slate-700 p-5 rounded-[24px] shadow-2xl flex items-center gap-4">
@@ -477,13 +478,12 @@ const AuthScreen: React.FC<{ onLogin: (u: UserAccount) => void; onShowAdmin: () 
         </div>
       )}
 
-      {/* Reduced scale for mobile auth card */}
-      <div className="w-full max-w-[90%] sm:max-w-md lg:max-w-lg animate-in zoom-in-95 duration-700 py-10">
-        <div className="bg-white p-6 sm:p-8 md:p-14 rounded-[32px] sm:rounded-[40px] md:rounded-[60px] shadow-[0_30px_100px_rgba(0,0,0,0.06)] border border-slate-100">
-          <div className="text-center mb-8 sm:mb-12">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-slate-900 rounded-[18px] sm:rounded-[24px] md:rounded-[30px] mx-auto mb-4 sm:mb-6 flex items-center justify-center text-white shadow-2xl relative">
+      <div className="w-full max-w-[92%] sm:max-w-md lg:max-w-lg animate-in zoom-in-95 duration-700 my-10">
+        <div className="bg-white p-6 sm:p-10 md:p-14 rounded-[32px] sm:rounded-[48px] md:rounded-[60px] shadow-[0_30px_100px_rgba(0,0,0,0.06)] border border-slate-100">
+          <div className="text-center mb-8 md:mb-12">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-slate-900 rounded-[18px] sm:rounded-[24px] md:rounded-[30px] mx-auto mb-5 md:mb-6 flex items-center justify-center text-white shadow-2xl relative">
               <div className="absolute inset-0 bg-green-500/10 animate-pulse"></div>
-              <Cpu size={24} className="sm:w-8 sm:h-8 md:w-10 md:h-10 text-green-400" />
+              <Cpu size={24} className="sm:w-10 sm:h-10 text-green-400" />
             </div>
             <h2 className="text-xl sm:text-2xl md:text-4xl font-black uppercase tracking-tighter">Hulu assis</h2>
             <p className="text-[8px] sm:text-[9px] md:text-[11px] text-slate-400 font-black uppercase tracking-[0.4em] mt-2">{mode === 'login' ? 'IDENTITY AUTHENTICATION' : step === 'otp' ? 'UPLINK VERIFICATION' : 'REGISTRY ENROLLMENT'}</p>
@@ -492,15 +492,20 @@ const AuthScreen: React.FC<{ onLogin: (u: UserAccount) => void; onShowAdmin: () 
           {mode === 'signup' && step === 'otp' ? (
             <form onSubmit={handleAuth} className="space-y-6">
               <div className="relative">
-                <input type="text" maxLength={6} placeholder="6-DIGIT CODE" className="w-full bg-slate-50 border border-slate-100 rounded-[18px] py-4 sm:py-6 text-center text-xl sm:text-2xl font-black tracking-[0.4em] outline-none focus:ring-8 focus:ring-slate-100 transition-all placeholder:tracking-normal placeholder:font-bold" value={otpValue} onChange={e => setOtpValue(e.target.value.replace(/\D/g, ''))} />
+                <input type="text" maxLength={6} placeholder="6-DIGIT CODE" className="w-full bg-slate-50 border border-slate-100 rounded-[18px] py-5 sm:py-6 text-center text-xl sm:text-2xl font-black tracking-[0.4em] outline-none focus:ring-8 focus:ring-slate-100 transition-all placeholder:tracking-normal placeholder:font-bold" value={otpValue} onChange={e => setOtpValue(e.target.value.replace(/\D/g, ''))} />
               </div>
-              {error && <p className="text-[9px] font-black text-red-500 uppercase text-center bg-red-50 py-3 rounded-xl">{error}</p>}
+              {error && (
+                <div className="flex flex-col items-center gap-2">
+                  <p className="text-[9px] font-black text-red-500 uppercase text-center bg-red-50 py-3 rounded-xl w-full">{error}</p>
+                  <button type="button" onClick={triggerSignup} className="text-[10px] font-black uppercase text-green-500 underline py-2">Resend OTP Now</button>
+                </div>
+              )}
               <div className="space-y-3">
                 <button type="submit" className="w-full bg-slate-900 text-white py-4 sm:py-6 rounded-[18px] sm:rounded-[24px] font-black uppercase tracking-[0.2em] text-[10px] sm:text-[11px] shadow-2xl active:scale-95 transition-all">AUTHORIZE UPLINK</button>
                 <div className="flex flex-col gap-2">
-                   <button type="button" onClick={() => setStep('details')} className="w-full text-[9px] font-black uppercase text-slate-400 hover:text-black tracking-widest transition-colors py-2">Back to Registry</button>
-                   {resendTimer === 0 && (
-                     <button type="button" onClick={triggerSignup} className="text-[9px] font-black uppercase text-green-500 hover:text-green-600 tracking-widest transition-colors py-2 underline">Resend code</button>
+                   <button type="button" onClick={() => setStep('details')} className="w-full text-[9px] font-black uppercase text-slate-400 hover:text-black tracking-widest transition-colors py-2">Modify Registry</button>
+                   {resendTimer === 0 && !error && (
+                     <button type="button" onClick={triggerSignup} className="text-[9px] font-black uppercase text-green-500 hover:text-green-600 tracking-widest transition-colors py-2 underline">New Code Request</button>
                    )}
                 </div>
               </div>
@@ -509,18 +514,18 @@ const AuthScreen: React.FC<{ onLogin: (u: UserAccount) => void; onShowAdmin: () 
             <form onSubmit={mode === 'login' ? handleAuth : (e) => { e.preventDefault(); triggerSignup(); }} className="space-y-3 sm:space-y-5">
               {mode === 'signup' && (
                 <>
-                  <div className="relative"><UserCircle className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input placeholder="Identity Name" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[24px] py-3.5 sm:py-5 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} /></div>
-                  <div className="relative"><Sparkles className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input placeholder="Bot Variant Alias" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[24px] py-3.5 sm:py-5 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.chatbotName} onChange={e => setFormData({ ...formData, chatbotName: e.target.value })} /></div>
+                  <div className="relative"><UserCircle className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input placeholder="Legal Identity" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[24px] py-4 sm:py-5 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} /></div>
+                  <div className="relative"><Sparkles className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input placeholder="Bot Designation" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[24px] py-4 sm:py-5 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.chatbotName} onChange={e => setFormData({ ...formData, chatbotName: e.target.value })} /></div>
                 </>
               )}
-              <div className="relative"><Smartphone className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input placeholder="Phone Identity" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[24px] py-3.5 sm:py-5 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.phoneNumber} onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })} /></div>
-              <div className="relative"><Lock className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input type="password" placeholder="Access Key" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[24px] py-3.5 sm:py-5 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} /></div>
-              {mode === 'signup' && <div className="relative"><ShieldCheck className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input type="password" placeholder="Verify Key" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[24px] py-3.5 sm:py-5 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.confirmPassword} onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })} /></div>}
+              <div className="relative"><Smartphone className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input placeholder="Phone ID" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[24px] py-4 sm:py-5 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.phoneNumber} onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })} /></div>
+              <div className="relative"><Lock className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input type="password" placeholder="Passkey" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[24px] py-4 sm:py-5 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} /></div>
+              {mode === 'signup' && <div className="relative"><ShieldCheck className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-slate-400" size={16}/><input type="password" placeholder="Verify Passkey" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] sm:rounded-[24px] py-4 sm:py-5 pl-12 sm:pl-14 pr-4 text-xs font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.confirmPassword} onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })} /></div>}
               {error && <p className="text-[9px] font-black text-red-500 uppercase text-center bg-red-50 py-3 rounded-xl">{error}</p>}
-              <button type="submit" className="w-full bg-slate-900 text-white py-4 sm:py-6 rounded-[16px] sm:rounded-[24px] font-black uppercase tracking-[0.2em] text-[10px] shadow-2xl active:scale-95 transition-all mt-4">ESTABLISH UPLINK</button>
+              <button type="submit" className="w-full bg-slate-900 text-white py-4 sm:py-6 rounded-[16px] sm:rounded-[24px] font-black uppercase tracking-[0.2em] text-[10px] shadow-2xl active:scale-95 transition-all mt-4">ESTABLISH LINK</button>
             </form>
           )}
-          <div className="mt-8 text-center"><button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setStep('details'); setError(''); }} className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-black transition-colors">{mode === 'login' ? "Registry Required? Enroll" : "Existing Identity? Authenticate"}</button></div>
+          <div className="mt-8 text-center"><button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setStep('details'); setError(''); }} className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-black transition-colors">{mode === 'login' ? "Registry Required? Join" : "Identity Verified? Authenticate"}</button></div>
         </div>
       </div>
     </div>
