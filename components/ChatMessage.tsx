@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { ChatMessage as ChatMessageType } from '../types';
-import { User, Cpu, Play, Square, Star, Copy, Globe, ExternalLink } from 'lucide-react';
+import { User, Cpu, Play, Square, Star, Copy, Globe, ExternalLink, Loader2 } from 'lucide-react';
 
 interface Props {
   message: ChatMessageType;
@@ -21,13 +21,18 @@ const ChatMessage: React.FC<Props> = ({ message, onPlayAudio, isAudioPlaying, on
         const lang = lines[0].replace('```', '').trim() || 'code';
         const code = lines.slice(1, -1).join('\n');
         return (
-          <div key={i} className="my-4 rounded-[20px] md:rounded-[24px] overflow-hidden border border-slate-700 shadow-xl bg-slate-900">
-            <div className="bg-slate-800 px-4 md:px-6 py-2 md:py-3 flex items-center justify-between border-b border-slate-700">
-              <span className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{lang}</span>
-              <button onClick={() => navigator.clipboard.writeText(code)} className="text-slate-400 hover:text-white transition-colors"><Copy size={14} /></button>
+          <div key={i} className="my-6 rounded-[24px] md:rounded-[32px] overflow-hidden border border-slate-700 shadow-2xl bg-slate-900 animate-in zoom-in-95 duration-500">
+            <div className="bg-slate-800 px-6 py-4 flex items-center justify-between border-b border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">{lang} synthesis</span>
+              </div>
+              <button onClick={() => navigator.clipboard.writeText(code)} className="text-slate-400 hover:text-white transition-colors p-2 bg-slate-700/50 rounded-lg"><Copy size={14} /></button>
             </div>
-            <div className="p-4 md:p-6 overflow-x-auto custom-scrollbar">
-              <code className="text-[10px] md:text-[12px] text-green-400 font-mono whitespace-pre leading-relaxed">{code}</code>
+            <div className="p-6 md:p-8 overflow-x-auto custom-scrollbar">
+              <code className="text-[11px] md:text-[13px] text-green-400 font-mono whitespace-pre leading-relaxed">{code}</code>
             </div>
           </div>
         );
@@ -43,7 +48,7 @@ const ChatMessage: React.FC<Props> = ({ message, onPlayAudio, isAudioPlaying, on
           {isUser ? <User size={14} className="md:w-5 md:h-5 text-white" /> : <Cpu size={14} className="md:w-5 md:h-5 text-white" />}
         </div>
         <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} gap-2`}>
-          <div className={`p-4 md:p-6 rounded-[24px] md:rounded-[32px] text-xs md:text-[14px] shadow-sm font-medium ${isUser ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-800'}`}>
+          <div className={`p-4 md:p-6 rounded-[24px] md:rounded-[32px] text-[12px] md:text-[14px] shadow-sm font-medium ${isUser ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-800'}`}>
             {message.parts.map((p, i) => (
               <div key={i}>
                 {p.inlineData && (
@@ -55,7 +60,6 @@ const ChatMessage: React.FC<Props> = ({ message, onPlayAudio, isAudioPlaying, on
               </div>
             ))}
 
-            {/* RESEARCH NODES */}
             {!isUser && message.groundingSources && message.groundingSources.length > 0 && (
               <div className="mt-6 pt-5 border-t border-slate-100 space-y-3">
                 <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2"><Globe size={12} /> RESEARCH NODES FOUND:</p>
@@ -75,8 +79,16 @@ const ChatMessage: React.FC<Props> = ({ message, onPlayAudio, isAudioPlaying, on
             <span className="text-[8px] md:text-[9px] text-slate-400 font-black uppercase tracking-widest">{new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             {!isUser && (
               <div className="flex items-center gap-4">
-                <button onClick={() => onPlayAudio?.(message.id, message.parts.map(p => p.text || '').join(' '))} className="text-[9px] md:text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 transition-colors flex items-center gap-1.5">
-                  {isAudioPlaying ? <Square size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />} {isAudioPlaying ? 'STOP' : 'LISTEN'}
+                <button 
+                  onClick={() => onPlayAudio?.(message.id, message.parts.map(p => p.text || '').join(' '))} 
+                  className="text-[9px] md:text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 transition-colors flex items-center gap-1.5"
+                >
+                  {isAudioPlaying ? (
+                    <Square size={12} fill="currentColor" />
+                  ) : (
+                    <Play size={12} fill="currentColor" />
+                  )}
+                  {isAudioPlaying ? 'STOP' : 'LISTEN'}
                 </button>
                 <button onClick={() => onStar?.(message)} className="text-slate-300 hover:text-yellow-500 transition-colors"><Star size={14} /></button>
                 <button onClick={() => navigator.clipboard.writeText(message.parts.map(p => p.text || '').join(' '))} className="text-slate-300 hover:text-slate-900 transition-colors"><Copy size={14} /></button>
