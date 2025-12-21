@@ -56,13 +56,17 @@ const App: React.FC = () => {
       }
       refreshAdminData();
     } catch (e) {
-      console.error("Storage Error:", e);
+      console.error("Storage Fault:", e);
     }
   }, []);
 
   const refreshAdminData = () => {
-    const accounts = JSON.parse(localStorage.getItem('hulu_accounts') || '[]');
-    setAdminAccounts(accounts);
+    try {
+      const accounts = JSON.parse(localStorage.getItem('hulu_accounts') || '[]');
+      setAdminAccounts(accounts);
+    } catch (e) {
+      setAdminAccounts([]);
+    }
   };
 
   const loadUserData = (userId: string) => {
@@ -96,7 +100,7 @@ const App: React.FC = () => {
     }
   }, [sessions, currentSessionId, isLoading, selectedProjectId]);
 
-  // Unified Search Logic
+  // POWERFUL SEARCH: Filters everything!
   const filteredSessions = useMemo(() => {
     if (!searchQuery) return sessions;
     const query = searchQuery.toLowerCase();
@@ -119,7 +123,7 @@ const App: React.FC = () => {
     if (currentSessionId) return currentSessionId;
     const newSession: ChatSessionHistory = {
       id: Date.now().toString(),
-      title: title.slice(0, 40),
+      title: title.slice(0, 40) || "New Topic",
       messages: [],
       updatedAt: Date.now()
     };
@@ -284,7 +288,7 @@ const App: React.FC = () => {
 
   const sharedUI = (
     <>
-      {/* Admin Panel */}
+      {/* Security Admin Panel */}
       {showAdminPanel && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-0 md:p-10 bg-black/98 backdrop-blur-3xl animate-in fade-in duration-500">
           <div className="bg-[#0b0f19] w-full h-full md:rounded-[40px] shadow-[0_0_150px_rgba(34,197,94,0.15)] flex flex-col border border-slate-800 overflow-hidden">
@@ -323,7 +327,7 @@ const App: React.FC = () => {
                        </button>
                     </div>
                     <div className="flex items-start gap-5 mb-8">
-                      <div className="w-16 h-16 rounded-[24px] bg-slate-800 flex items-center justify-center text-green-500 border border-slate-700 shadow-2xl overflow-hidden">
+                      <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center text-green-500 border border-slate-700 shadow-2xl overflow-hidden">
                         {acc.profilePic ? (
                           <img src={acc.profilePic} alt={acc.username} className="w-full h-full object-cover" />
                         ) : (
@@ -353,7 +357,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* User Profile Modal */}
+      {/* Profile Detail Overlay */}
       {showProfile && currentUser && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-xl animate-in fade-in duration-300">
           <div className="bg-white rounded-[48px] w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 border border-slate-100">
@@ -369,7 +373,7 @@ const App: React.FC = () => {
                      </div>
                      <button 
                        onClick={() => profilePicInputRef.current?.click()}
-                       className="absolute bottom-0 right-0 bg-slate-900 text-white p-2 rounded-full shadow-lg border-2 border-white hover:scale-110 transition-transform active:scale-95"
+                       className="absolute bottom-0 right-0 bg-slate-900 text-white p-2.5 rounded-full shadow-lg border-2 border-white hover:scale-110 transition-transform active:scale-95"
                      >
                        <Camera size={16} />
                      </button>
@@ -382,8 +386,8 @@ const App: React.FC = () => {
                      />
                    </div>
                    <div>
-                      <h3 className="text-2xl font-black tracking-tighter uppercase">{currentUser.username}</h3>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">Active Security Node</p>
+                      <h3 className="text-2xl font-black tracking-tighter uppercase leading-none">{currentUser.username}</h3>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mt-2">Active Security Node</p>
                    </div>
                 </div>
                 <button onClick={() => setShowProfile(false)} className="p-4 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all active:scale-95 shadow-sm">
@@ -414,7 +418,7 @@ const App: React.FC = () => {
                   >
                     <LogOut size={16} /> Terminate Uplink
                   </button>
-                  <p className="text-[9px] text-center text-slate-400 font-bold uppercase tracking-widest mt-2">Hulu assis Secure Protocol v1.0</p>
+                  <p className="text-[9px] text-center text-slate-400 font-bold uppercase tracking-widest mt-2">Hulu assis Secure Protocol v2.1</p>
                 </div>
              </div>
           </div>
@@ -425,7 +429,7 @@ const App: React.FC = () => {
 
   if (isAuthView) {
     return (
-      <>
+      <div className="min-h-screen bg-white">
         {sharedUI}
         <AuthScreen 
           onShowAdmin={() => { refreshAdminData(); setShowAdminPanel(true); }}
@@ -436,7 +440,7 @@ const App: React.FC = () => {
             localStorage.setItem('hulu_current_user', JSON.stringify(user)); 
           }} 
         />
-      </>
+      </div>
     );
   }
 
@@ -450,6 +454,7 @@ const App: React.FC = () => {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
       )}
 
+      {/* Navigation Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-80 bg-slate-50 border-r border-slate-200 transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex flex-col h-full">
           <div className="p-8 pb-4">
@@ -469,12 +474,13 @@ const App: React.FC = () => {
               </button>
             </div>
             
+            {/* SEARCH INPUT: Direct entry to global search */}
             <div className="relative mb-6">
               <Search className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${isSearching ? 'text-green-500' : 'text-slate-400'}`} size={14} />
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search history and pins..."
+                placeholder="Search nodes and pins..."
                 className="w-full bg-white border border-slate-200 rounded-[20px] py-3 pl-11 pr-10 text-[11px] font-bold outline-none transition-all focus:ring-4 focus:ring-slate-100"
               />
               {isSearching && (
@@ -497,16 +503,17 @@ const App: React.FC = () => {
           <div className="flex-1 overflow-y-auto custom-scrollbar px-5 pb-8">
             {isSearching ? (
               <div className="space-y-6 animate-in fade-in duration-300">
+                {/* Search Results Sections */}
                 {filteredSessions.length > 0 && (
                   <div>
-                    <h3 className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-3 px-4">Chat Matches ({filteredSessions.length})</h3>
+                    <h3 className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-3 px-4">Topic Results ({filteredSessions.length})</h3>
                     <div className="space-y-1.5">
                       {filteredSessions.map(s => (
                         <button key={s.id} onClick={() => { setCurrentSessionId(s.id); setSelectedProjectId(null); setIsSidebarOpen(false); setSearchQuery(''); }} className="w-full flex items-center gap-4 p-4 rounded-[20px] text-left transition-all hover:bg-white shadow-sm ring-1 ring-slate-100">
                           <div className="p-2 rounded-xl bg-slate-100 text-slate-400">
                             <MessageSquare size={14} />
                           </div>
-                          <span className="text-[11px] font-black text-slate-700 truncate uppercase tracking-tighter">{s.title || 'Blank Uplink'}</span>
+                          <span className="text-[11px] font-black text-slate-700 truncate uppercase tracking-tighter">{s.title || 'Uplink Node'}</span>
                         </button>
                       ))}
                     </div>
@@ -514,7 +521,7 @@ const App: React.FC = () => {
                 )}
                 {filteredProjects.length > 0 && (
                   <div>
-                    <h3 className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-3 px-4">Pin Matches ({filteredProjects.length})</h3>
+                    <h3 className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-3 px-4">Pin Results ({filteredProjects.length})</h3>
                     <div className="space-y-1.5">
                       {filteredProjects.map(p => (
                         <button key={p.id} onClick={() => { setSelectedProjectId(p.id); setIsSidebarOpen(false); setSearchQuery(''); }} className="w-full p-4 bg-white rounded-[20px] border border-slate-100 hover:border-slate-300 transition-all text-left shadow-sm">
@@ -531,7 +538,7 @@ const App: React.FC = () => {
                 {filteredSessions.length === 0 && filteredProjects.length === 0 && (
                   <div className="text-center py-10 px-4">
                     <SearchCode size={32} className="mx-auto text-slate-200 mb-3" />
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No nodes found for "{searchQuery}"</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No matching security nodes found.</p>
                   </div>
                 )}
               </div>
@@ -570,21 +577,21 @@ const App: React.FC = () => {
             <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden text-slate-600 p-3 bg-slate-50 rounded-2xl"><Menu size={20} /></button>
             <div className="flex flex-col">
                <h2 className="text-lg font-black tracking-tighter uppercase leading-none">Hulu assis</h2>
-               <div className="flex items-center gap-1.5 mt-1">
+               <div className="flex items-center gap-1.5 mt-1.5">
                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">System Operational</span>
+                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">System Operational</span>
                </div>
             </div>
           </div>
           <div className="flex items-center gap-4">
              <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-2xl border border-slate-100">
                 <Globe size={14} className="text-slate-400" />
-                <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Cloud Encrypted</span>
+                <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Global Proxy Active</span>
              </div>
              <button onClick={() => setShowProfile(true)} className="flex items-center gap-3 pl-4 border-l border-slate-100 hover:opacity-80 transition-all active:scale-95">
                <div className="flex flex-col items-end">
-                  <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">{currentUser?.username}</span>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">View Profile</span>
+                  <span className="text-[11px] font-black uppercase tracking-widest text-slate-900 leading-none">{currentUser?.username}</span>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mt-1">Registry Profile</span>
                </div>
                <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white shadow-lg border-2 border-white overflow-hidden">
                  {currentUser?.profilePic ? (
@@ -601,17 +608,17 @@ const App: React.FC = () => {
           <div className="max-w-4xl mx-auto min-h-full flex flex-col">
             {selectedProject ? (
               <div className="animate-in fade-in slide-in-from-bottom-6 duration-500 pb-20">
-                <button onClick={() => setSelectedProjectId(null)} className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 mb-8 transition-colors"><ArrowLeft size={16} /> Close Document</button>
+                <button onClick={() => setSelectedProjectId(null)} className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 mb-8 transition-colors"><ArrowLeft size={16} /> Close Security Archive</button>
                 <div className="bg-white border border-slate-200 rounded-[40px] overflow-hidden shadow-2xl">
                   <div className="p-10 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center">
                     <div>
-                       <span className="text-[10px] font-black text-green-600 uppercase tracking-widest block mb-1">Archived Content</span>
+                       <span className="text-[10px] font-black text-green-600 uppercase tracking-widest block mb-1">Archived Analysis</span>
                        <h3 className="text-2xl font-black text-slate-900 tracking-tighter uppercase">{selectedProject.title}</h3>
                     </div>
                     <button onClick={() => {
                        navigator.clipboard.writeText(selectedProject.content);
-                       alert("Content secured to clipboard.");
-                    }} className="flex items-center gap-3 bg-slate-900 text-white px-8 py-4 rounded-[20px] text-[11px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl active:scale-95"><Copy size={18} /> Copy Data</button>
+                       alert("Identity data captured to clipboard.");
+                    }} className="flex items-center gap-3 bg-slate-900 text-white px-8 py-4 rounded-[20px] text-[11px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl active:scale-95"><Copy size={18} /> Extract Data</button>
                   </div>
                   <div className="p-10"><pre className="bg-slate-900 p-8 rounded-[32px] overflow-x-auto text-green-400 font-mono text-sm leading-relaxed border border-slate-800 shadow-inner"><code>{selectedProject.content}</code></pre></div>
                 </div>
@@ -626,10 +633,10 @@ const App: React.FC = () => {
                     <Cpu size={48} className="text-green-400" />
                   )}
                 </div>
-                <h3 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase mb-3 text-center">Ready for input.</h3>
-                <p className="text-slate-500 font-bold uppercase text-[11px] tracking-[0.5em] text-center mb-16">The most powerful AI at your service.</p>
+                <h3 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase mb-3 text-center">Awaiting Transmission</h3>
+                <p className="text-slate-500 font-bold uppercase text-[11px] tracking-[0.5em] text-center mb-16">The most powerful AI at your disposal.</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl px-6">
-                  {[`Analyze my source code`, `Deconstruct this visual image`, `Optimize my research strategy`, `Synthesize complex concepts`].map((tip, i) => (
+                  {[`Analyze security protocols`, `Interpret this visual feed`, `Synthesize complex data`, `Generate elite strategies`].map((tip, i) => (
                     <button key={i} onClick={() => handleSendMessage(tip)} className="text-left p-6 rounded-[28px] border border-slate-200 hover:border-slate-900 hover:bg-white bg-slate-50/30 transition-all font-bold text-sm text-slate-800 flex items-center justify-between group">
                       "{tip}"
                       <Zap size={14} className="text-slate-300 group-hover:text-green-500 transition-colors" />
@@ -670,6 +677,8 @@ const App: React.FC = () => {
   );
 };
 
+// ... AuthScreen and handle verified remains the same but with enhanced UI visuals ...
+
 interface AuthProps {
   onLogin: (user: UserAccount) => void;
   onShowAdmin: () => void;
@@ -695,11 +704,11 @@ const AuthScreen: React.FC<AuthProps> = ({ onLogin, onShowAdmin }) => {
   const validatePhone = (phone: string) => phone.replace(/[^\d]/g, '').length >= 10;
 
   const startSignupVerification = () => {
-    if (!formData.username || !formData.chatbotName || !formData.phoneNumber || !formData.password) { setError('Mandatory fields required.'); return; }
-    if (!validatePhone(formData.phoneNumber)) { setError('Invalid phone length. Verification required.'); return; }
-    if (formData.password !== formData.confirmPassword) { setError('Key verification mismatch.'); return; }
+    if (!formData.username || !formData.chatbotName || !formData.phoneNumber || !formData.password) { setError('All fields required for Uplink.'); return; }
+    if (!validatePhone(formData.phoneNumber)) { setError('Invalid phone number length.'); return; }
+    if (formData.password !== formData.confirmPassword) { setError('Access Key mismatch.'); return; }
     const accounts: UserAccount[] = JSON.parse(localStorage.getItem('hulu_accounts') || '[]');
-    if (accounts.some(a => a.phoneNumber === formData.phoneNumber)) { setError('Phone uplink already active.'); return; }
+    if (accounts.some(a => a.phoneNumber === formData.phoneNumber)) { setError('Phone identity already registered.'); return; }
     generateAndSendOtp();
   };
 
@@ -721,7 +730,7 @@ const AuthScreen: React.FC<AuthProps> = ({ onLogin, onShowAdmin }) => {
       accounts.push(newUser);
       localStorage.setItem('hulu_accounts', JSON.stringify(accounts));
       onLogin(newUser);
-    } else { setError('Authorization code invalid. Access denied.'); }
+    } else { setError('Authorization code mismatch. Access denied.'); }
   };
 
   const handleLoginSubmit = (e: React.FormEvent) => {
@@ -732,7 +741,7 @@ const AuthScreen: React.FC<AuthProps> = ({ onLogin, onShowAdmin }) => {
     const accounts: UserAccount[] = JSON.parse(localStorage.getItem('hulu_accounts') || '[]');
     const user = accounts.find(a => a.phoneNumber === formData.phoneNumber && a.password === formData.password);
     if (user) {
-      if (user.isBlocked) { setError('Identity revoked by security command.'); return; }
+      if (user.isBlocked) { setError('This node has been blacklisted.'); return; }
       onLogin(user);
     } else { setError('Invalid credentials. Uplink rejected.'); }
   };
@@ -744,8 +753,8 @@ const AuthScreen: React.FC<AuthProps> = ({ onLogin, onShowAdmin }) => {
           <div className="bg-slate-900/95 backdrop-blur-2xl border border-slate-700 p-6 rounded-[32px] shadow-[0_0_60px_rgba(0,0,0,0.4)] flex items-center gap-5">
             <div className="p-3.5 bg-green-500 rounded-2xl text-white shadow-xl shadow-green-500/20"><ShieldCheck size={24} /></div>
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-black uppercase text-green-500 tracking-[0.3em] mb-1">Security Transmission</p>
-              <p className="text-sm font-bold text-white">OTP Code: <span className="text-green-400 font-mono text-lg tracking-[0.3em] ml-2">{generatedOtp}</span></p>
+              <p className="text-[10px] font-black uppercase text-green-500 tracking-[0.3em] mb-1">Secure Uplink OTP</p>
+              <p className="text-sm font-bold text-white">Transmission: <span className="text-green-400 font-mono text-lg tracking-[0.3em] ml-2">{generatedOtp}</span></p>
             </div>
           </div>
         </div>
@@ -766,11 +775,11 @@ const AuthScreen: React.FC<AuthProps> = ({ onLogin, onShowAdmin }) => {
                 <ShieldAlert className="text-red-500 shrink-0 mt-1" size={20} />
                 <div className="min-w-0">
                    <p className="text-[10px] font-black uppercase tracking-widest text-red-600 mb-1">Security Warning</p>
-                   <p className="text-[12px] font-bold text-red-700 leading-relaxed">System logs detect fake uplinks. Entering fraudulent data leads to permanent node termination.</p>
+                   <p className="text-[12px] font-bold text-red-700 leading-relaxed">System logs detect fake uplinks. Fraudulent data leads to node termination.</p>
                 </div>
               </div>
               <div className="text-center">
-                <p className="text-sm font-bold text-slate-500">Sent verification code to</p>
+                <p className="text-sm font-bold text-slate-500">Sent verification to</p>
                 <p className="text-sm font-black text-slate-900 mt-1 uppercase tracking-widest">{formData.phoneNumber}</p>
               </div>
               <div className="relative">
@@ -778,27 +787,27 @@ const AuthScreen: React.FC<AuthProps> = ({ onLogin, onShowAdmin }) => {
               </div>
               {error && <div className="flex items-center gap-3 text-red-500 bg-red-50 p-4 rounded-2xl text-[11px] font-black uppercase tracking-widest"><AlertTriangle size={16} /> {error}</div>}
               <div className="flex flex-col gap-4">
-                <button type="submit" className="w-full bg-slate-900 text-white py-6 rounded-[24px] text-xs font-black uppercase tracking-[0.3em] shadow-2xl shadow-slate-200 hover:bg-black transition-all active:scale-[0.98]">Authorize Node</button>
-                <button type="button" onClick={generateAndSendOtp} disabled={resendTimer > 0} className={`w-full py-4 text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all ${resendTimer > 0 ? 'text-slate-300' : 'text-slate-500 hover:text-slate-900'}`}><RefreshCcw size={14} className={resendTimer > 0 ? '' : 'animate-spin'} /> {resendTimer > 0 ? `Retry Uplink in ${resendTimer}s` : 'Resend Verification Code'}</button>
-                <button type="button" onClick={() => setStep('details')} className="w-full text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600">Edit Details</button>
+                <button type="submit" className="w-full bg-slate-900 text-white py-6 rounded-[24px] text-xs font-black uppercase tracking-[0.3em] shadow-2xl shadow-slate-200 hover:bg-black transition-all active:scale-[0.98]">Authorize Uplink</button>
+                <button type="button" onClick={generateAndSendOtp} disabled={resendTimer > 0} className={`w-full py-4 text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all ${resendTimer > 0 ? 'text-slate-300' : 'text-slate-500 hover:text-slate-900'}`}><RefreshCcw size={14} className={resendTimer > 0 ? '' : 'animate-spin'} /> {resendTimer > 0 ? `Uplink Retry in ${resendTimer}s` : 'Resend Transmission'}</button>
+                <button type="button" onClick={() => setStep('details')} className="w-full text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600">Back to Details</button>
               </div>
             </form>
           ) : (
             <form onSubmit={mode === 'login' ? handleLoginSubmit : (e) => { e.preventDefault(); startSignupVerification(); }} className="space-y-5">
               {mode === 'signup' && (
                 <>
-                  <div className="relative"><UserCircle className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} /><input type="text" placeholder="Your Display Identity" className="w-full bg-slate-50 border border-slate-100 rounded-[24px] py-5 pl-14 pr-6 text-sm font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} /></div>
-                  <div className="relative"><Sparkles className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} /><input type="text" placeholder="Bot Persona Name" className="w-full bg-slate-50 border border-slate-100 rounded-[24px] py-5 pl-14 pr-6 text-sm font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.chatbotName} onChange={e => setFormData({ ...formData, chatbotName: e.target.value })} /></div>
+                  <div className="relative"><UserCircle className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} /><input type="text" placeholder="Identity Display Name" className="w-full bg-slate-50 border border-slate-100 rounded-[24px] py-5 pl-14 pr-6 text-sm font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} /></div>
+                  <div className="relative"><Sparkles className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} /><input type="text" placeholder="AI Bot Alias" className="w-full bg-slate-50 border border-slate-100 rounded-[24px] py-5 pl-14 pr-6 text-sm font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.chatbotName} onChange={e => setFormData({ ...formData, chatbotName: e.target.value })} /></div>
                 </>
               )}
-              <div className="relative"><Smartphone className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} /><input type="text" placeholder="Uplink Phone Number" className="w-full bg-slate-50 border border-slate-100 rounded-[24px] py-5 pl-14 pr-6 text-sm font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.phoneNumber} onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })} /></div>
-              <div className="relative"><Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} /><input type={showPassword ? 'text' : 'password'} placeholder="Secure Access Key" className="w-full bg-slate-50 border border-slate-100 rounded-[24px] py-5 pl-14 pr-16 text-sm font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} /><button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900">{showPassword ? <EyeOff size={20} /> : <Eye size={20} />}</button></div>
-              {mode === 'signup' && <div className="relative"><Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} /><input type="password" placeholder="Verify Access Key" className="w-full bg-slate-50 border border-slate-100 rounded-[24px] py-5 pl-14 pr-6 text-sm font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.confirmPassword} onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })} /></div>}
+              <div className="relative"><Smartphone className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} /><input type="text" placeholder="Identity Phone Number" className="w-full bg-slate-50 border border-slate-100 rounded-[24px] py-5 pl-14 pr-6 text-sm font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.phoneNumber} onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })} /></div>
+              <div className="relative"><Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} /><input type={showPassword ? 'text' : 'password'} placeholder="Access Key" className="w-full bg-slate-50 border border-slate-100 rounded-[24px] py-5 pl-14 pr-16 text-sm font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} /><button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900">{showPassword ? <EyeOff size={20} /> : <Eye size={20} />}</button></div>
+              {mode === 'signup' && <div className="relative"><Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} /><input type="password" placeholder="Verify Key" className="w-full bg-slate-50 border border-slate-100 rounded-[24px] py-5 pl-14 pr-6 text-sm font-bold outline-none focus:ring-8 focus:ring-slate-100 transition-all" value={formData.confirmPassword} onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })} /></div>}
               {error && <div className="flex items-center gap-3 text-red-500 bg-red-50 p-4 rounded-2xl text-[11px] font-black uppercase tracking-widest"><AlertTriangle size={16} /> {error}</div>}
-              <button type="submit" className="w-full bg-slate-900 text-white py-6 rounded-[24px] text-xs font-black uppercase tracking-[0.4em] shadow-2xl shadow-slate-200 hover:bg-black transition-all active:scale-[0.98] mt-4">{mode === 'login' ? 'Authorize Session' : 'Request Uplink'}</button>
+              <button type="submit" className="w-full bg-slate-900 text-white py-6 rounded-[24px] text-xs font-black uppercase tracking-[0.4em] shadow-2xl shadow-slate-200 hover:bg-black transition-all active:scale-[0.98] mt-4">{mode === 'login' ? 'Authenticate Node' : 'Register Identity'}</button>
             </form>
           )}
-          <div className="mt-12 text-center"><button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setStep('details'); setError(''); }} className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 hover:text-slate-900 transition-colors">{mode === 'login' ? "New Identity? Begin Registry" : "Existing Identity? Authenticate"}</button></div>
+          <div className="mt-12 text-center"><button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setStep('details'); setError(''); }} className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400 hover:text-slate-900 transition-colors">{mode === 'login' ? "Registry Required? Register Now" : "Existing Identity? Authenticate"}</button></div>
         </div>
       </div>
     </div>
