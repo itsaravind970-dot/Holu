@@ -2,10 +2,13 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { ChatMessage } from "../types";
 
-const MASTER_PROMPT = `You are "Hulu assis", a professional, world-class AI assistant engineered for Aravind. 
-Your intelligence is elite, your reasoning is deep, and your tone is sophisticated but helpful.
-Always provide detailed, precise answers. Use bold text and bullet points for clarity. 
-You represent the absolute peak of AI technology.`;
+const MASTER_PROMPT = `You are "Hulu assis", a world-class AI assistant developed for Aravind. 
+You provide elite, accurate, and helpful responses. Use Markdown for formatting.
+Always respond as the user's chosen Bot identity if applicable. 
+You are currently powered by the Gemini 2.5 Flash engine.`;
+
+// Using the provided API key as a fallback to ensure the user gets responses immediately
+const API_KEY = process.env.API_KEY || "AIzaSyC12LW4wzwTPPtS6BekGUzv75QeO3H3u-A";
 
 export const geminiService = {
   async chatWithHistory(
@@ -14,12 +17,11 @@ export const geminiService = {
     media?: { data: string; mimeType: string },
     signal?: AbortSignal
   ) {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey || apiKey === "undefined") {
+    if (!API_KEY || API_KEY === "undefined") {
       throw new Error("API_KEY_MISSING");
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: API_KEY });
     
     const contents = history.map(msg => ({
       role: msg.role === 'user' ? 'user' : 'model',
@@ -41,12 +43,12 @@ export const geminiService = {
 
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-2.5-flash',
         contents: contents as any,
         config: {
           systemInstruction: MASTER_PROMPT,
-          temperature: 0.8,
-          topP: 0.95,
+          temperature: 0.7,
+          topP: 0.9,
           tools: [{ googleSearch: {} }]
         }
       });
@@ -55,19 +57,17 @@ export const geminiService = {
       return response;
     } catch (error: any) {
       if (error.message === 'AbortError') throw error;
-      console.error("Gemini Core Failure:", error);
+      console.error("Transmission Error:", error);
       throw error;
     }
   },
 
   async textToSpeech(text: string) {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey || apiKey === "undefined") return null;
+    if (!API_KEY || API_KEY === "undefined") return null;
     
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey: API_KEY });
     try {
-      // Clean text for cleaner audio synthesis
-      const cleanText = text.replace(/[`*#]/g, '').replace(/\[.*?\]/g, '').slice(0, 400);
+      const cleanText = text.replace(/[`*#]/g, '').slice(0, 300);
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
         contents: [{ parts: [{ text: cleanText }] }],
