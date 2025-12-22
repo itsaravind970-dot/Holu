@@ -31,15 +31,6 @@ export interface ChatSessionHistory {
   updatedAt: number;
 }
 
-export interface SavedProjectItem {
-  id: string;
-  type: 'code' | 'topic';
-  content: string;
-  language?: string;
-  timestamp: number;
-  title: string;
-}
-
 export interface UserAccount {
   id: string;
   username: string;
@@ -48,6 +39,8 @@ export interface UserAccount {
   password?: string;
   bio?: string;
   createdAt: number;
+  lastLoginAt?: number;
+  searchCount?: number;
   isBlocked?: boolean;
   profilePic?: string;
 }
