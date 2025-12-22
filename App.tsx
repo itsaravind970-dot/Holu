@@ -20,11 +20,18 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [cloudStatus, setCloudStatus] = useState<'online' | 'offline' | 'syncing'>('online');
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
   
   const [tempProfileData, setTempProfileData] = useState({ username: '', chatbotName: '', bio: '' });
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const profilePicInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  }, [sessions, isLoading]);
 
   const syncUserToGlobalHub = async (userToSync: UserAccount) => {
     setCloudStatus('syncing');
@@ -66,7 +73,8 @@ const App: React.FC = () => {
         const user = JSON.parse(storedUser);
         setCurrentUser(user);
         setIsAuthView(false);
-        setSessions(JSON.parse(localStorage.getItem(`hulu_sessions_${user.id}`) || '[]'));
+        const saved = JSON.parse(localStorage.getItem(`hulu_sessions_${user.id}`) || '[]');
+        setSessions(saved);
         await syncUserToGlobalHub(user);
       }
     };
@@ -74,6 +82,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleSendMessage = async (text: string, file?: { data: string; mimeType: string }) => {
+    setRuntimeError(null);
     let activeId = currentSessionId;
     if (!activeId) {
       const newS: ChatSessionHistory = { id: Date.now().toString(), title: text.slice(0, 30), messages: [], updatedAt: Date.now() };
@@ -83,7 +92,8 @@ const App: React.FC = () => {
     }
     
     const userMsg: ChatMessageType = { id: Date.now().toString(), role: 'user', parts: file ? [{ text }, { inlineData: file }] : [{ text }], timestamp: Date.now() };
-    setSessions(prev => prev.map(s => s.id === activeId ? { ...s, messages: [...s.messages, userMsg], updatedAt: Date.now() } : s));
+    const stepOneSessions = sessions.map(s => s.id === activeId ? { ...s, messages: [...s.messages, userMsg], updatedAt: Date.now() } : s);
+    setSessions(stepOneSessions);
     
     if (currentUser) {
       const updatedUser = { 
@@ -99,11 +109,11 @@ const App: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const history = sessions.find(s => s.id === activeId)?.messages || [];
-      const res = await geminiService.chatWithHistory(history, text, file);
+      const currentSession = stepOneSessions.find(s => s.id === activeId);
+      const history = currentSession?.messages.slice(0, -1) || [];
       
-      // Extraction of generated text using the property .text
-      const generatedText = res.text || "No intelligence response available.";
+      const res = await geminiService.chatWithHistory(history, text, file);
+      const generatedText = res.text || "Synthesized data is unavailable.";
       
       const botMsg: ChatMessageType = { 
         id: Date.now().toString(), 
@@ -113,8 +123,15 @@ const App: React.FC = () => {
         groundingSources: res.candidates?.[0]?.groundingMetadata?.groundingChunks 
       };
       
-      setSessions(prev => prev.map(s => s.id === activeId ? { ...s, messages: [...s.messages, botMsg], updatedAt: Date.now() } : s));
+      setSessions(prev => {
+        const finalSessions = prev.map(s => s.id === activeId ? { ...s, messages: [...s.messages, botMsg], updatedAt: Date.now() } : s);
+        if (currentUser) {
+          localStorage.setItem(`hulu_sessions_${currentUser.id}`, JSON.stringify(finalSessions));
+        }
+        return finalSessions;
+      });
     } catch (e: any) { 
+      setRuntimeError(e.message || "Failed to establish link with Gemini 2.5. Check configuration.");
       console.error(e.message);
     } finally { 
       setIsLoading(false); 
@@ -171,13 +188,21 @@ const App: React.FC = () => {
               <div className="h-full flex flex-col items-center justify-center py-40 text-center opacity-30 select-none">
                 <div className="w-24 h-24 bg-white border border-slate-100 rounded-[44px] flex items-center justify-center mb-8 shadow-sm"><Waves size={48} className="text-slate-100 animate-pulse" /></div>
                 <h3 className="text-lg font-black uppercase tracking-[0.6em] text-slate-400">Node Connected</h3>
-                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-4">Cloud Sync Active</p>
+                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-4">Gemini 2.5 Online</p>
               </div>
             )}
+            
+            {runtimeError && (
+              <div className="p-4 mb-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                <AlertCircle size={16} className="text-red-500 shrink-0" />
+                <p className="text-[9px] font-black text-red-600 uppercase tracking-widest">{runtimeError}</p>
+              </div>
+            )}
+
             {isLoading && (
               <div className="p-10 flex flex-col items-center gap-4">
                  <Loader2 className="animate-spin text-green-500" size={28} />
-                 <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.4em]">Synthesizing Response...</span>
+                 <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.4em]">Gemini 2.5 Flash Processing...</span>
               </div>
             )}
           </div>

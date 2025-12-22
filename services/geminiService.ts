@@ -5,7 +5,7 @@ import { ChatMessage } from "../types";
 const MASTER_PROMPT = `You are "Aravind's bot", a world-class AI assistant. 
 You provide elite, accurate, and helpful responses. Use Markdown for formatting.
 Respond as the user's chosen Bot identity if applicable. 
-You are currently powered by the Gemini 3 Flash engine.`;
+You are currently powered by the Gemini 2.5 Flash engine.`;
 
 export const geminiService = {
   async chatWithHistory(
@@ -15,11 +15,12 @@ export const geminiService = {
     signal?: AbortSignal
   ) {
     if (!process.env.API_KEY) {
-      throw new Error("API Key is not configured. Please check your environment.");
+      throw new Error("API Key is missing. Uplink failed.");
     }
 
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
+    // Map history to SDK-compliant format
     const contents = history.map(msg => ({
       role: msg.role === 'user' ? 'user' : 'model',
       parts: msg.parts.map(p => {
@@ -27,8 +28,9 @@ export const geminiService = {
         if (p.inlineData) return { inlineData: p.inlineData };
         return { text: '' };
       })
-    })).filter(c => c.parts.length > 0);
+    }));
 
+    // Append latest user turn
     const currentParts: any[] = [{ text: newMessage }];
     if (media) {
       currentParts.push({
@@ -40,11 +42,11 @@ export const geminiService = {
 
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-2.5-flash-preview-09-2025',
         contents: contents as any,
         config: {
           systemInstruction: MASTER_PROMPT,
-          temperature: 0.7,
+          temperature: 0.75,
           topP: 0.9,
           tools: [{ googleSearch: {} }]
         }
@@ -54,7 +56,7 @@ export const geminiService = {
       return response;
     } catch (error: any) {
       if (error.message === 'AbortError') throw error;
-      console.error("Gemini Service Error:", error);
+      console.error("Gemini Engine Error:", error);
       throw error;
     }
   },
