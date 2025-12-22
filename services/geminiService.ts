@@ -2,9 +2,10 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { ChatMessage } from "../types";
 
-const MASTER_PROMPT = `You are "Hulu assis", a world-class AI companion. 
-Always provide precise, high-quality, and helpful answers. 
-Your founder is Aravind. Be professional and intelligent.`;
+const MASTER_PROMPT = `You are "Hulu assis", a professional, world-class AI assistant engineered for Aravind. 
+Your intelligence is elite, your reasoning is deep, and your tone is sophisticated but helpful.
+Always provide detailed, precise answers. Use bold text and bullet points for clarity. 
+You represent the absolute peak of AI technology.`;
 
 export const geminiService = {
   async chatWithHistory(
@@ -44,7 +45,9 @@ export const geminiService = {
         contents: contents as any,
         config: {
           systemInstruction: MASTER_PROMPT,
-          temperature: 0.7,
+          temperature: 0.8,
+          topP: 0.95,
+          tools: [{ googleSearch: {} }]
         }
       });
       
@@ -52,7 +55,7 @@ export const geminiService = {
       return response;
     } catch (error: any) {
       if (error.message === 'AbortError') throw error;
-      console.error("Gemini Critical Error:", error);
+      console.error("Gemini Core Failure:", error);
       throw error;
     }
   },
@@ -63,7 +66,8 @@ export const geminiService = {
     
     const ai = new GoogleGenAI({ apiKey });
     try {
-      const cleanText = text.replace(/[`*#]/g, '').slice(0, 300);
+      // Clean text for cleaner audio synthesis
+      const cleanText = text.replace(/[`*#]/g, '').replace(/\[.*?\]/g, '').slice(0, 400);
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
         contents: [{ parts: [{ text: cleanText }] }],
