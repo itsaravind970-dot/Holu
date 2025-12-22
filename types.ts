@@ -46,6 +46,7 @@ export interface UserAccount {
   chatbotName: string;
   phoneNumber: string;
   password?: string;
+  bio?: string;
   createdAt: number;
   isBlocked?: boolean;
   profilePic?: string;
