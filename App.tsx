@@ -8,7 +8,7 @@ import {
   MessageSquare, Plus, Menu, X, Loader2, Waves, Smartphone, UserCircle, LogOut, Zap, AlertCircle, Camera, Save, Eye, EyeOff, Fingerprint, ShieldCheck
 } from 'lucide-react';
 
-const CLOUD_STORAGE_KEY = 'aravind_user_registry_v17_final';
+const CLOUD_STORAGE_KEY = 'aravind_user_registry_v18_final';
 const CLOUD_URL = `https://kvdb.io/MWpXp2A1oB6yq7X9Z4Y8R/${CLOUD_STORAGE_KEY}`;
 
 const App: React.FC = () => {
@@ -27,7 +27,6 @@ const App: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const profilePicInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync scroll to bottom when messages update
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -96,9 +95,12 @@ const App: React.FC = () => {
     };
 
     let targetSessionId = currentSessionId || timestamp.toString();
-    const historyForApi: ChatMessageType[] = sessions.find(s => s.id === currentSessionId)?.messages || [];
+    
+    // Get correct history snapshot for the API
+    const sessionToUpdate = sessions.find(s => s.id === targetSessionId);
+    const historyForApi = sessionToUpdate ? sessionToUpdate.messages : [];
 
-    // 1. Optimistically update local session state
+    // 1. Update session state locally with User message
     setSessions(prev => {
       if (!currentSessionId) {
         setCurrentSessionId(targetSessionId);
@@ -116,24 +118,10 @@ const App: React.FC = () => {
       );
     });
 
-    if (currentUser) {
-      const updatedUser = { 
-        ...currentUser, 
-        searchCount: (currentUser.searchCount || 0) + 1, 
-        lastLoginAt: Date.now(),
-        lastSearch: text.slice(0, 60) 
-      };
-      setCurrentUser(updatedUser);
-      localStorage.setItem('hulu_current_user', JSON.stringify(updatedUser));
-      syncUserToGlobalHub(updatedUser);
-    }
-
     try {
-      // 2. Call Gemini Service with current history + new user message
+      // 2. Execute Intelligence Request (Gemini 2.0 Flash)
       const res = await geminiService.chatWithHistory(historyForApi, text, file);
-      
-      // Extraction: Access the .text property from the GenerateContentResponse
-      const generatedText = res.text || "I was unable to synthesize a response at this time.";
+      const generatedText = res.text || "I was unable to synthesize a response at this moment.";
       
       const botMsg: ChatMessageType = { 
         id: (Date.now() + 1).toString(), 
@@ -143,7 +131,7 @@ const App: React.FC = () => {
         groundingSources: res.candidates?.[0]?.groundingMetadata?.groundingChunks 
       };
       
-      // 3. Update state with the bot's response
+      // 3. Persist and display AI response
       setSessions(prev => {
         const finalSessions = prev.map(s => s.id === targetSessionId ? { ...s, messages: [...s.messages, botMsg], updatedAt: Date.now() } : s);
         if (currentUser) {
@@ -153,7 +141,7 @@ const App: React.FC = () => {
       });
     } catch (e: any) { 
       setRuntimeError(e.message || "Intelligence Uplink Offline.");
-      console.error(e);
+      console.error("API Failure:", e);
     } finally { 
       setIsLoading(false); 
     }
@@ -178,7 +166,7 @@ const App: React.FC = () => {
             {sessions.map(s => (
               <button key={s.id} onClick={() => { setCurrentSessionId(s.id); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-4 rounded-xl text-left transition-all ${currentSessionId === s.id ? 'bg-white/10 ring-1 ring-white/10 shadow-lg' : 'opacity-40 hover:opacity-100 hover:bg-white/5'}`}>
                 <MessageSquare size={14} className="text-green-500 shrink-0" />
-                <span className="text-[10px] font-bold truncate uppercase">{s.title || 'Uplink Active'}</span>
+                <span className="text-[10px] font-bold truncate uppercase">{s.title || 'Uplink Ready'}</span>
               </button>
             ))}
           </div>
@@ -196,7 +184,7 @@ const App: React.FC = () => {
               <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{cloudStatus}</span>
             </div>
           </div>
-          <button onClick={() => { setShowProfile(true); setTempProfileData({ username: currentUser?.username || '', chatbotName: currentUser?.chatbotName || '', bio: currentUser?.bio || '' }); }} className="w-10 h-10 rounded-2xl bg-slate-950 flex items-center justify-center text-white overflow-hidden border-2 border-white shadow-xl active:scale-90 transition-all">
+          <button onClick={() => { setShowProfile(true); setTempProfileData({ username: currentUser?.username || '', chatbotName: currentUser?.chatbotName || '', bio: currentUser?.bio || '' }); }} className="w-10 h-10 rounded-2xl bg-slate-950 flex items-center justify-center text-white border-2 border-white shadow-xl active:scale-90 transition-all overflow-hidden">
              {currentUser?.profilePic ? <img src={currentUser.profilePic} className="w-full h-full object-cover" /> : <UserCircle size={22} />}
           </button>
         </header>
@@ -208,8 +196,8 @@ const App: React.FC = () => {
             )) : (
               <div className="h-full flex flex-col items-center justify-center py-40 text-center opacity-30 select-none">
                 <div className="w-24 h-24 bg-white border border-slate-100 rounded-[44px] flex items-center justify-center mb-8 shadow-sm"><Waves size={48} className="text-slate-100 animate-pulse" /></div>
-                <h3 className="text-lg font-black uppercase tracking-[0.6em] text-slate-400">Node Ready</h3>
-                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-4">Gemini Intelligence Ready</p>
+                <h3 className="text-lg font-black uppercase tracking-[0.6em] text-slate-400 leading-tight">Gemini 2.0<br/>Flash Activated</h3>
+                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-4">Awaiting Command Input</p>
               </div>
             )}
             
@@ -238,7 +226,7 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-2xl flex items-center justify-center p-8" onClick={() => setShowProfile(false)}>
            <div className="w-full max-w-[360px] bg-white rounded-[56px] p-10 shadow-2xl animate-in zoom-in-95 duration-400" onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-10">
-                 <h3 className="text-[11px] font-black uppercase text-slate-400 tracking-widest">Profile Configuration</h3>
+                 <h3 className="text-[11px] font-black uppercase text-slate-400 tracking-widest">Global Identity</h3>
                  <button onClick={() => setShowProfile(false)} className="p-2.5 bg-slate-100 rounded-2xl hover:bg-slate-200 transition-all"><X size={18} /></button>
               </div>
               <div className="flex flex-col items-center gap-8">
@@ -262,11 +250,11 @@ const App: React.FC = () => {
                  </div>
                  <div className="w-full space-y-5">
                     <div className="space-y-1.5">
-                       <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-5">Legal Name</label>
+                       <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-5">Identifier Name</label>
                        <input className="w-full bg-slate-50 border border-slate-100 rounded-[24px] py-4 px-7 text-[13px] font-bold outline-none focus:border-slate-950 transition-all shadow-inner" value={tempProfileData.username} onChange={e => setTempProfileData({...tempProfileData, username: e.target.value})} />
                     </div>
                     <div className="space-y-1.5">
-                       <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-5">Bot Designation</label>
+                       <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-5">AI Designation</label>
                        <input className="w-full bg-slate-50 border border-slate-100 rounded-[24px] py-4 px-7 text-[13px] font-bold outline-none focus:border-slate-950 transition-all shadow-inner" value={tempProfileData.chatbotName} onChange={e => setTempProfileData({...tempProfileData, chatbotName: e.target.value})} />
                     </div>
                     <button onClick={async () => {
@@ -274,12 +262,12 @@ const App: React.FC = () => {
                         const up = { ...currentUser, ...tempProfileData };
                         setCurrentUser(up);
                         await syncUserToGlobalHub(up);
-                        alert('Identity Updated Globally');
+                        alert('Identity Synced Successfully.');
                       }
-                    }} className="w-full bg-slate-950 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-[0.3em] shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 mt-4"><Save size={18} /> Update Profile</button>
+                    }} className="w-full bg-slate-950 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-[0.3em] shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 mt-4"><Save size={18} /> Sync Globally</button>
                  </div>
               </div>
-              <button onClick={() => { localStorage.removeItem('hulu_current_user'); setCurrentUser(null); setIsAuthView(true); setShowProfile(false); }} className="w-full mt-10 py-5 text-red-500 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-red-50 rounded-[28px] transition-all"><LogOut size={18} /> Disconnect Session</button>
+              <button onClick={() => { localStorage.removeItem('hulu_current_user'); setCurrentUser(null); setIsAuthView(true); setShowProfile(false); }} className="w-full mt-10 py-5 text-red-500 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-red-50 rounded-[28px] transition-all"><LogOut size={18} /> Kill Session</button>
            </div>
         </div>
       )}
@@ -309,9 +297,9 @@ const AuthScreen: React.FC<{
   }, [resendTimer]);
 
   const initiateOtp = () => {
-    if (!formData.username || !formData.phoneNumber || !formData.password || !formData.confirmPassword || !formData.chatbotName) return setError('All fields required.');
-    if (formData.phoneNumber.length !== 10) return setError('10 digit number required.');
-    if (formData.password !== formData.confirmPassword) return setError('Passwords must match.');
+    if (!formData.username || !formData.phoneNumber || !formData.password || !formData.confirmPassword || !formData.chatbotName) return setError('Incomplete details.');
+    if (formData.phoneNumber.length !== 10) return setError('Invalid ID length.');
+    if (formData.password !== formData.confirmPassword) return setError('Security keys mismatch.');
     
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedOtp(code);
@@ -336,40 +324,40 @@ const AuthScreen: React.FC<{
         const match = registry.find(a => a.phoneNumber === formData.phoneNumber && a.password === formData.password);
         if (match) {
           if (match.isBlocked) {
-            setError('Account blocked.');
+            setError('Account Isolated.');
           } else {
             const updatedUser = { ...match, lastLoginAt: Date.now() };
             await onGlobalSync(updatedUser);
             localStorage.setItem('hulu_current_user', JSON.stringify(updatedUser));
             onLogin(updatedUser);
           }
-        } else setError('Incorrect credentials.');
+        } else setError('Invalid Node Details.');
       } else {
         if (otpValue === generatedOtp) {
           if (registry.some(a => a.phoneNumber === formData.phoneNumber)) {
-            setError('Number already registered.');
+            setError('ID already registered.');
           } else {
             const newUser: UserAccount = { id: Date.now().toString(), ...formData, createdAt: Date.now(), lastLoginAt: Date.now(), searchCount: 0, isBlocked: false, bio: '' };
             await onGlobalSync(newUser);
             localStorage.setItem('hulu_current_user', JSON.stringify(newUser));
             onLogin(newUser);
           }
-        } else setError('Invalid OTP code.');
+        } else setError('Cipher Mismatch.');
       }
     } catch (e) {
-      setError('Connection failure.');
+      setError('Uplink failed.');
     } finally {
       setIsBusy(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-12 bg-slate-50 overflow-y-auto">
-      {/* COMPACT FLOATING OTP AT THE ABSOLUTE TOP */}
+    <div className="fixed inset-0 flex items-center justify-center p-10 bg-slate-50 overflow-y-auto">
+      {/* FLOATING TOP-LEVEL OTP */}
       {otpSplash && (
         <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[300] w-[220px] animate-in slide-in-from-top-12 duration-500">
            <div className="bg-slate-950 p-4 rounded-[24px] shadow-2xl border border-white/10 text-center relative overflow-hidden ring-1 ring-slate-900">
-              <p className="text-[7px] font-black text-green-500 uppercase tracking-widest mb-2">Verification Cipher</p>
+              <p className="text-[7px] font-black text-green-500 uppercase tracking-widest mb-2">Security Cipher</p>
               <h4 className="text-2xl font-black text-white font-mono tracking-widest">{generatedOtp}</h4>
               <div className="mt-3 h-1 bg-white/5 rounded-full overflow-hidden">
                  <div className="h-full bg-green-500 animate-[shrink_12s_linear_forwards]" style={{width: '100%'}}></div>
@@ -378,15 +366,15 @@ const AuthScreen: React.FC<{
         </div>
       )}
 
-      {/* ULTRA-COMPACT BUSINESS-FRIENDLY AUTH BOX (MAX WIDTH 260px) */}
-      <div className="w-full max-w-[260px] bg-white p-7 rounded-[44px] shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-500 my-auto mx-auto ring-1 ring-slate-200/40">
+      {/* ULTRA-COMPACT PREMIUM AUTH BOX */}
+      <div className="w-full max-w-[260px] bg-white p-6 rounded-[44px] shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-500 my-auto mx-auto ring-1 ring-slate-200/40">
          <div className="text-center mb-6">
             <div className="w-10 h-10 bg-slate-950 rounded-[18px] mx-auto mb-4 flex items-center justify-center text-green-400 shadow-xl shadow-green-400/5">
                <Waves size={20} />
             </div>
             <h2 className="text-base font-black uppercase text-slate-950 tracking-tighter leading-none mb-1">Aravind Bot</h2>
             <p className="text-[6px] text-slate-400 font-black uppercase tracking-[0.3em] leading-none">
-              {mode === 'login' ? 'Nexus Authentication' : 'Create Identity'}
+              {mode === 'login' ? 'Authorized Access' : 'Create Identity'}
             </p>
          </div>
 
@@ -398,7 +386,7 @@ const AuthScreen: React.FC<{
              </div>
              {error && <p className="text-[7px] font-black text-red-500 uppercase text-center tracking-widest">{error}</p>}
              <button type="submit" disabled={isBusy || otpValue.length < 6} className="w-full bg-slate-950 text-white py-3.5 rounded-[20px] font-black uppercase text-[9px] tracking-[0.3em] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">
-                {isBusy ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />} Verify Access
+                {isBusy ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />} Verify Node
              </button>
              <button type="button" disabled={resendTimer > 0} onClick={() => { 
                 const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -407,7 +395,7 @@ const AuthScreen: React.FC<{
                 setResendTimer(15);
                 setTimeout(() => setOtpSplash(false), 12000);
              }} className="w-full text-[7px] font-black text-slate-400 uppercase tracking-widest text-center hover:text-slate-900 transition-colors">
-               {resendTimer > 0 ? `Resend ${resendTimer}s` : 'Request New Code'}
+               {resendTimer > 0 ? `Resend ${resendTimer}s` : 'Request Cipher'}
              </button>
            </form>
          ) : (
@@ -416,11 +404,11 @@ const AuthScreen: React.FC<{
                  <>
                    <div className="space-y-1">
                       <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Full Name</label>
-                      <input placeholder="Name" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 px-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} />
+                      <input placeholder="Identity" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 px-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} />
                    </div>
                    <div className="space-y-1">
-                      <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Bot Name</label>
-                      <input placeholder="Persona" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 px-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.chatbotName} onChange={e => setFormData({...formData, chatbotName: e.target.value})} />
+                      <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Bot Persona</label>
+                      <input placeholder="Designation" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 px-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.chatbotName} onChange={e => setFormData({...formData, chatbotName: e.target.value})} />
                    </div>
                  </>
               )}
@@ -432,7 +420,7 @@ const AuthScreen: React.FC<{
                  </div>
               </div>
               <div className="space-y-1">
-                 <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Security Key</label>
+                 <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Passkey</label>
                  <div className="relative">
                     <Fingerprint size={10} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input type={showPass ? "text" : "password"} placeholder="••••" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 pl-8 pr-8 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />

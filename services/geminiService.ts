@@ -15,7 +15,7 @@ export const geminiService = {
     signal?: AbortSignal
   ) {
     if (!process.env.API_KEY) {
-      throw new Error("API configuration missing. Check environment variables.");
+      throw new Error("Intelligence Uplink Configuration Missing.");
     }
 
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -42,11 +42,11 @@ export const geminiService = {
 
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-2.0-flash-exp',
         contents: contents as any,
         config: {
           systemInstruction: MASTER_PROMPT,
-          temperature: 0.8,
+          temperature: 0.7,
           topP: 0.95,
         }
       });
