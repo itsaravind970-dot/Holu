@@ -8,7 +8,7 @@ import {
   MessageSquare, Plus, Menu, X, Loader2, Waves, Smartphone, UserCircle, LogOut, Zap, AlertCircle, Camera, Save, Eye, EyeOff, Fingerprint, ShieldCheck
 } from 'lucide-react';
 
-const CLOUD_STORAGE_KEY = 'aravind_user_registry_v16_final';
+const CLOUD_STORAGE_KEY = 'aravind_user_registry_v17_final';
 const CLOUD_URL = `https://kvdb.io/MWpXp2A1oB6yq7X9Z4Y8R/${CLOUD_STORAGE_KEY}`;
 
 const App: React.FC = () => {
@@ -27,6 +27,7 @@ const App: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const profilePicInputRef = useRef<HTMLInputElement>(null);
 
+  // Sync scroll to bottom when messages update
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -82,19 +83,39 @@ const App: React.FC = () => {
   }, []);
 
   const handleSendMessage = async (text: string, file?: { data: string; mimeType: string }) => {
+    if (isLoading) return;
     setRuntimeError(null);
-    let activeId = currentSessionId;
-    if (!activeId) {
-      const newS: ChatSessionHistory = { id: Date.now().toString(), title: text.slice(0, 30), messages: [], updatedAt: Date.now() };
-      setSessions(p => [newS, ...p]);
-      activeId = newS.id;
-      setCurrentSessionId(newS.id);
-    }
-    
-    const userMsg: ChatMessageType = { id: Date.now().toString(), role: 'user', parts: file ? [{ text }, { inlineData: file }] : [{ text }], timestamp: Date.now() };
-    const stepOneSessions = sessions.map(s => s.id === activeId ? { ...s, messages: [...s.messages, userMsg], updatedAt: Date.now() } : s);
-    setSessions(stepOneSessions);
-    
+    setIsLoading(true);
+
+    const timestamp = Date.now();
+    const userMsg: ChatMessageType = {
+      id: timestamp.toString(),
+      role: 'user',
+      parts: file ? [{ text }, { inlineData: file }] : [{ text }],
+      timestamp,
+    };
+
+    let targetSessionId = currentSessionId || timestamp.toString();
+    const historyForApi: ChatMessageType[] = sessions.find(s => s.id === currentSessionId)?.messages || [];
+
+    // 1. Optimistically update local session state
+    setSessions(prev => {
+      if (!currentSessionId) {
+        setCurrentSessionId(targetSessionId);
+        return [{
+          id: targetSessionId,
+          title: text.slice(0, 30) || 'New Project',
+          messages: [userMsg],
+          updatedAt: timestamp
+        }, ...prev];
+      }
+      return prev.map(s => 
+        s.id === targetSessionId 
+          ? { ...s, messages: [...s.messages, userMsg], updatedAt: timestamp } 
+          : s
+      );
+    });
+
     if (currentUser) {
       const updatedUser = { 
         ...currentUser, 
@@ -107,34 +128,32 @@ const App: React.FC = () => {
       syncUserToGlobalHub(updatedUser);
     }
 
-    setIsLoading(true);
     try {
-      const currentSession = stepOneSessions.find(s => s.id === activeId);
-      const history = currentSession?.messages.slice(0, -1) || [];
+      // 2. Call Gemini Service with current history + new user message
+      const res = await geminiService.chatWithHistory(historyForApi, text, file);
       
-      const res = await geminiService.chatWithHistory(history, text, file);
-      
-      // Extraction fix: Directly access .text property from the response
-      const generatedText = res.text || "No intelligence content returned.";
+      // Extraction: Access the .text property from the GenerateContentResponse
+      const generatedText = res.text || "I was unable to synthesize a response at this time.";
       
       const botMsg: ChatMessageType = { 
-        id: Date.now().toString(), 
+        id: (Date.now() + 1).toString(), 
         role: 'model', 
         parts: [{ text: generatedText }], 
         timestamp: Date.now(), 
         groundingSources: res.candidates?.[0]?.groundingMetadata?.groundingChunks 
       };
       
+      // 3. Update state with the bot's response
       setSessions(prev => {
-        const finalSessions = prev.map(s => s.id === activeId ? { ...s, messages: [...s.messages, botMsg], updatedAt: Date.now() } : s);
+        const finalSessions = prev.map(s => s.id === targetSessionId ? { ...s, messages: [...s.messages, botMsg], updatedAt: Date.now() } : s);
         if (currentUser) {
           localStorage.setItem(`hulu_sessions_${currentUser.id}`, JSON.stringify(finalSessions));
         }
         return finalSessions;
       });
     } catch (e: any) { 
-      setRuntimeError(e.message || "Intelligence Uplink Failed.");
-      console.error(e.message);
+      setRuntimeError(e.message || "Intelligence Uplink Offline.");
+      console.error(e);
     } finally { 
       setIsLoading(false); 
     }
@@ -159,7 +178,7 @@ const App: React.FC = () => {
             {sessions.map(s => (
               <button key={s.id} onClick={() => { setCurrentSessionId(s.id); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 p-4 rounded-xl text-left transition-all ${currentSessionId === s.id ? 'bg-white/10 ring-1 ring-white/10 shadow-lg' : 'opacity-40 hover:opacity-100 hover:bg-white/5'}`}>
                 <MessageSquare size={14} className="text-green-500 shrink-0" />
-                <span className="text-[10px] font-bold truncate uppercase">{s.title || 'Uplink Ready'}</span>
+                <span className="text-[10px] font-bold truncate uppercase">{s.title || 'Uplink Active'}</span>
               </button>
             ))}
           </div>
@@ -189,8 +208,8 @@ const App: React.FC = () => {
             )) : (
               <div className="h-full flex flex-col items-center justify-center py-40 text-center opacity-30 select-none">
                 <div className="w-24 h-24 bg-white border border-slate-100 rounded-[44px] flex items-center justify-center mb-8 shadow-sm"><Waves size={48} className="text-slate-100 animate-pulse" /></div>
-                <h3 className="text-lg font-black uppercase tracking-[0.6em] text-slate-400">Node Connected</h3>
-                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-4">Gemini 3 Flash Online</p>
+                <h3 className="text-lg font-black uppercase tracking-[0.6em] text-slate-400">Node Ready</h3>
+                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-4">Gemini Intelligence Ready</p>
               </div>
             )}
             
@@ -219,7 +238,7 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-2xl flex items-center justify-center p-8" onClick={() => setShowProfile(false)}>
            <div className="w-full max-w-[360px] bg-white rounded-[56px] p-10 shadow-2xl animate-in zoom-in-95 duration-400" onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-10">
-                 <h3 className="text-[11px] font-black uppercase text-slate-400 tracking-widest">My Identity</h3>
+                 <h3 className="text-[11px] font-black uppercase text-slate-400 tracking-widest">Profile Configuration</h3>
                  <button onClick={() => setShowProfile(false)} className="p-2.5 bg-slate-100 rounded-2xl hover:bg-slate-200 transition-all"><X size={18} /></button>
               </div>
               <div className="flex flex-col items-center gap-8">
@@ -243,7 +262,7 @@ const App: React.FC = () => {
                  </div>
                  <div className="w-full space-y-5">
                     <div className="space-y-1.5">
-                       <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-5">My Name</label>
+                       <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-5">Legal Name</label>
                        <input className="w-full bg-slate-50 border border-slate-100 rounded-[24px] py-4 px-7 text-[13px] font-bold outline-none focus:border-slate-950 transition-all shadow-inner" value={tempProfileData.username} onChange={e => setTempProfileData({...tempProfileData, username: e.target.value})} />
                     </div>
                     <div className="space-y-1.5">
@@ -260,7 +279,7 @@ const App: React.FC = () => {
                     }} className="w-full bg-slate-950 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-[0.3em] shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 mt-4"><Save size={18} /> Update Profile</button>
                  </div>
               </div>
-              <button onClick={() => { localStorage.removeItem('hulu_current_user'); setCurrentUser(null); setIsAuthView(true); setShowProfile(false); }} className="w-full mt-10 py-5 text-red-500 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-red-50 rounded-[28px] transition-all"><LogOut size={18} /> Disconnect</button>
+              <button onClick={() => { localStorage.removeItem('hulu_current_user'); setCurrentUser(null); setIsAuthView(true); setShowProfile(false); }} className="w-full mt-10 py-5 text-red-500 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-red-50 rounded-[28px] transition-all"><LogOut size={18} /> Disconnect Session</button>
            </div>
         </div>
       )}
@@ -290,9 +309,9 @@ const AuthScreen: React.FC<{
   }, [resendTimer]);
 
   const initiateOtp = () => {
-    if (!formData.username || !formData.phoneNumber || !formData.password || !formData.confirmPassword || !formData.chatbotName) return setError('Fill all fields.');
+    if (!formData.username || !formData.phoneNumber || !formData.password || !formData.confirmPassword || !formData.chatbotName) return setError('All fields required.');
     if (formData.phoneNumber.length !== 10) return setError('10 digit number required.');
-    if (formData.password !== formData.confirmPassword) return setError('Passwords mismatch.');
+    if (formData.password !== formData.confirmPassword) return setError('Passwords must match.');
     
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedOtp(code);
@@ -317,28 +336,28 @@ const AuthScreen: React.FC<{
         const match = registry.find(a => a.phoneNumber === formData.phoneNumber && a.password === formData.password);
         if (match) {
           if (match.isBlocked) {
-            setError('Access Denied.');
+            setError('Account blocked.');
           } else {
             const updatedUser = { ...match, lastLoginAt: Date.now() };
             await onGlobalSync(updatedUser);
             localStorage.setItem('hulu_current_user', JSON.stringify(updatedUser));
             onLogin(updatedUser);
           }
-        } else setError('Invalid details.');
+        } else setError('Incorrect credentials.');
       } else {
         if (otpValue === generatedOtp) {
           if (registry.some(a => a.phoneNumber === formData.phoneNumber)) {
-            setError('Identifier exists.');
+            setError('Number already registered.');
           } else {
             const newUser: UserAccount = { id: Date.now().toString(), ...formData, createdAt: Date.now(), lastLoginAt: Date.now(), searchCount: 0, isBlocked: false, bio: '' };
             await onGlobalSync(newUser);
             localStorage.setItem('hulu_current_user', JSON.stringify(newUser));
             onLogin(newUser);
           }
-        } else setError('Code incorrect.');
+        } else setError('Invalid OTP code.');
       }
     } catch (e) {
-      setError('Sync failed.');
+      setError('Connection failure.');
     } finally {
       setIsBusy(false);
     }
@@ -350,7 +369,7 @@ const AuthScreen: React.FC<{
       {otpSplash && (
         <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[300] w-[220px] animate-in slide-in-from-top-12 duration-500">
            <div className="bg-slate-950 p-4 rounded-[24px] shadow-2xl border border-white/10 text-center relative overflow-hidden ring-1 ring-slate-900">
-              <p className="text-[7px] font-black text-green-500 uppercase tracking-widest mb-2">Nexus Cipher</p>
+              <p className="text-[7px] font-black text-green-500 uppercase tracking-widest mb-2">Verification Cipher</p>
               <h4 className="text-2xl font-black text-white font-mono tracking-widest">{generatedOtp}</h4>
               <div className="mt-3 h-1 bg-white/5 rounded-full overflow-hidden">
                  <div className="h-full bg-green-500 animate-[shrink_12s_linear_forwards]" style={{width: '100%'}}></div>
@@ -360,14 +379,14 @@ const AuthScreen: React.FC<{
       )}
 
       {/* ULTRA-COMPACT BUSINESS-FRIENDLY AUTH BOX (MAX WIDTH 260px) */}
-      <div className="w-full max-w-[260px] bg-white p-6 rounded-[44px] shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-500 my-auto mx-auto ring-1 ring-slate-200/40">
+      <div className="w-full max-w-[260px] bg-white p-7 rounded-[44px] shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-500 my-auto mx-auto ring-1 ring-slate-200/40">
          <div className="text-center mb-6">
             <div className="w-10 h-10 bg-slate-950 rounded-[18px] mx-auto mb-4 flex items-center justify-center text-green-400 shadow-xl shadow-green-400/5">
                <Waves size={20} />
             </div>
             <h2 className="text-base font-black uppercase text-slate-950 tracking-tighter leading-none mb-1">Aravind Bot</h2>
             <p className="text-[6px] text-slate-400 font-black uppercase tracking-[0.3em] leading-none">
-              {mode === 'login' ? 'Secure Gateway' : 'New Identity'}
+              {mode === 'login' ? 'Nexus Authentication' : 'Create Identity'}
             </p>
          </div>
 
@@ -379,7 +398,7 @@ const AuthScreen: React.FC<{
              </div>
              {error && <p className="text-[7px] font-black text-red-500 uppercase text-center tracking-widest">{error}</p>}
              <button type="submit" disabled={isBusy || otpValue.length < 6} className="w-full bg-slate-950 text-white py-3.5 rounded-[20px] font-black uppercase text-[9px] tracking-[0.3em] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">
-                {isBusy ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />} Verify
+                {isBusy ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />} Verify Access
              </button>
              <button type="button" disabled={resendTimer > 0} onClick={() => { 
                 const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -387,8 +406,8 @@ const AuthScreen: React.FC<{
                 setOtpSplash(true);
                 setResendTimer(15);
                 setTimeout(() => setOtpSplash(false), 12000);
-             }} className="w-full text-[7px] font-black text-slate-400 uppercase tracking-widest text-center hover:text-slate-900">
-               {resendTimer > 0 ? `Retry ${resendTimer}s` : 'New Cipher'}
+             }} className="w-full text-[7px] font-black text-slate-400 uppercase tracking-widest text-center hover:text-slate-900 transition-colors">
+               {resendTimer > 0 ? `Resend ${resendTimer}s` : 'Request New Code'}
              </button>
            </form>
          ) : (
@@ -400,20 +419,20 @@ const AuthScreen: React.FC<{
                       <input placeholder="Name" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 px-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} />
                    </div>
                    <div className="space-y-1">
-                      <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Bot Tag</label>
+                      <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Bot Name</label>
                       <input placeholder="Persona" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 px-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.chatbotName} onChange={e => setFormData({...formData, chatbotName: e.target.value})} />
                    </div>
                  </>
               )}
               <div className="space-y-1">
-                 <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Mobile</label>
+                 <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Mobile ID</label>
                  <div className="relative">
                     <Smartphone size={10} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input placeholder="10 Digits" maxLength={10} className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 pl-8 pr-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.phoneNumber} onChange={e => setFormData({...formData, phoneNumber: e.target.value.replace(/\D/g, '')})} />
                  </div>
               </div>
               <div className="space-y-1">
-                 <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Passkey</label>
+                 <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Security Key</label>
                  <div className="relative">
                     <Fingerprint size={10} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input type={showPass ? "text" : "password"} placeholder="••••" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 pl-8 pr-8 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
@@ -422,19 +441,19 @@ const AuthScreen: React.FC<{
               </div>
               {mode === 'signup' && (
                 <div className="space-y-1">
-                   <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Verify</label>
+                   <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Verify Key</label>
                    <input type="password" placeholder="••••" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 px-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.confirmPassword} onChange={e => setFormData({...formData, confirmPassword: e.target.value})} />
                 </div>
               )}
               {error && <p className="text-[6px] font-black text-red-500 uppercase tracking-widest text-center mt-1">{error}</p>}
               <button type="submit" disabled={isBusy} className="w-full bg-slate-950 text-white py-3 rounded-[18px] font-black uppercase text-[8px] tracking-[0.2em] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 mt-3">
                  {isBusy ? <Loader2 size={12} className="animate-spin" /> : mode === 'login' ? <Zap size={12} /> : <Plus size={12} />} 
-                 {mode === 'login' ? 'Login' : 'Signup'} 
+                 {mode === 'login' ? 'Login Node' : 'Register Identity'} 
               </button>
            </form>
          )}
          <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setStep('details'); setError(''); }} className="w-full mt-6 text-[7px] font-black uppercase text-slate-400 tracking-[0.4em] hover:text-slate-950 transition-all text-center">
-           {mode === 'login' ? 'Register New node' : 'Existing node? Login'}
+           {mode === 'login' ? 'New node? Register' : 'Existing node? Login'}
          </button>
       </div>
       

@@ -3,9 +3,9 @@ import { GoogleGenAI, Modality } from "@google/genai";
 import { ChatMessage } from "../types";
 
 const MASTER_PROMPT = `You are "Aravind's bot", an elite AI assistant. 
-You provide fast, accurate, and professional responses. 
-Format your output using clean Markdown. 
-Respond naturally as an advanced intelligence hub.`;
+You provide professional, accurate, and concise responses. 
+Always use clean Markdown formatting. 
+Respond as a high-tier intelligence hub designed for business efficiency.`;
 
 export const geminiService = {
   async chatWithHistory(
@@ -20,6 +20,7 @@ export const geminiService = {
 
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
+    // Map history to the format required by the SDK
     const contents = history.map(msg => ({
       role: msg.role === 'user' ? 'user' : 'model',
       parts: msg.parts.map(p => {
@@ -29,6 +30,7 @@ export const geminiService = {
       })
     })).filter(c => c.parts.length > 0);
 
+    // Add current user message
     const currentParts: any[] = [{ text: newMessage }];
     if (media) {
       currentParts.push({
@@ -44,18 +46,15 @@ export const geminiService = {
         contents: contents as any,
         config: {
           systemInstruction: MASTER_PROMPT,
-          temperature: 1,
+          temperature: 0.8,
           topP: 0.95,
-          tools: [{ googleSearch: {} }]
         }
       });
       
       if (signal?.aborted) throw new Error('AbortError');
 
-      // The SDK's response.text getter handles extraction. 
-      // We ensure we have a valid response candidate.
       if (!response.candidates || response.candidates.length === 0) {
-        throw new Error("No response candidates received from intelligence hub.");
+        throw new Error("Intelligence hub returned an empty response.");
       }
 
       return response;
