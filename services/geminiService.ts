@@ -2,10 +2,10 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { ChatMessage } from "../types";
 
-const MASTER_PROMPT = `You are "Aravind's bot", a world-class AI assistant. 
-You provide elite, accurate, and helpful responses. Use Markdown for formatting.
-Respond as the user's chosen Bot identity if applicable. 
-You are currently powered by the Gemini 2.5 Flash engine.`;
+const MASTER_PROMPT = `You are "Aravind's bot", an elite AI assistant. 
+You provide fast, accurate, and professional responses. 
+Format your output using clean Markdown. 
+Respond naturally as an advanced intelligence hub.`;
 
 export const geminiService = {
   async chatWithHistory(
@@ -14,13 +14,9 @@ export const geminiService = {
     media?: { data: string; mimeType: string },
     signal?: AbortSignal
   ) {
-    if (!process.env.API_KEY) {
-      throw new Error("API Key is missing. Uplink failed.");
-    }
-
+    // We initialize inside the function to ensure process.env.API_KEY is accessed at runtime
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    // Map history to SDK-compliant format
     const contents = history.map(msg => ({
       role: msg.role === 'user' ? 'user' : 'model',
       parts: msg.parts.map(p => {
@@ -28,9 +24,8 @@ export const geminiService = {
         if (p.inlineData) return { inlineData: p.inlineData };
         return { text: '' };
       })
-    }));
+    })).filter(c => c.parts.length > 0);
 
-    // Append latest user turn
     const currentParts: any[] = [{ text: newMessage }];
     if (media) {
       currentParts.push({
@@ -42,12 +37,12 @@ export const geminiService = {
 
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-preview-09-2025',
+        model: 'gemini-3-flash-preview',
         contents: contents as any,
         config: {
           systemInstruction: MASTER_PROMPT,
-          temperature: 0.75,
-          topP: 0.9,
+          temperature: 0.8,
+          topP: 0.95,
           tools: [{ googleSearch: {} }]
         }
       });
@@ -56,14 +51,12 @@ export const geminiService = {
       return response;
     } catch (error: any) {
       if (error.message === 'AbortError') throw error;
-      console.error("Gemini Engine Error:", error);
+      console.error("Gemini Critical Error:", error);
       throw error;
     }
   },
 
   async textToSpeech(text: string) {
-    if (!process.env.API_KEY) return null;
-    
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
       const cleanText = text.replace(/[`*#]/g, '').slice(0, 300);
