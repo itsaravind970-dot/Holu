@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { ChatMessage as ChatMessageType } from '../types';
-import { User, Cpu, Play, Square, Star, Copy, Globe, ExternalLink, Loader2 } from 'lucide-react';
+import { User, Waves, Play, Square, Star, Copy, Globe, ExternalLink, Loader2 } from 'lucide-react';
 
 interface Props {
   message: ChatMessageType;
@@ -45,7 +45,7 @@ const ChatMessage: React.FC<Props> = ({ message, onPlayAudio, isAudioPlaying, on
     <div className={`flex w-full mb-3 md:mb-5 ${isUser ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}>
       <div className={`flex max-w-[95%] sm:max-w-[85%] md:max-w-[75%] ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start gap-1.5 md:gap-2`}>
         <div className={`shrink-0 w-6 h-6 md:w-8 md:h-8 rounded-md md:rounded-lg flex items-center justify-center shadow border border-white ${isUser ? 'bg-slate-900' : 'bg-green-500'}`}>
-          {isUser ? <User size={10} className="md:w-3.5 md:h-3.5 text-white" /> : <Cpu size={10} className="md:w-3.5 md:h-3.5 text-white" />}
+          {isUser ? <User size={10} className="md:w-3.5 md:h-3.5 text-white" /> : <Waves size={10} className="md:w-3.5 md:h-3.5 text-white" />}
         </div>
         <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} gap-1`}>
           <div className={`p-2.5 md:p-3 rounded-xl md:rounded-2xl text-[10px] md:text-[12px] shadow-sm font-medium ${isUser ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-800'}`}>

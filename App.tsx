@@ -5,7 +5,7 @@ import { geminiService, decodeAudioData } from './services/geminiService';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import { 
-  MessageSquare, Plus, Menu, X, User, Loader2, Cpu, Lock, Smartphone, UserCircle, LogOut, ShieldCheck, Zap, AlertCircle, RefreshCw, Camera, Trash2, Ban, CheckCircle, Fingerprint, Info, Key, FileText
+  MessageSquare, Plus, Menu, X, User, Loader2, Waves, Lock, Smartphone, UserCircle, LogOut, ShieldCheck, Zap, AlertCircle, RefreshCw, Camera, Trash2, Ban, CheckCircle, Fingerprint, Info, Key, FileText, Save, Edit3
 } from 'lucide-react';
 
 const SECRET_ADMIN_CODE = 'Aravind63091309709705371970';
@@ -24,6 +24,9 @@ const App: React.FC = () => {
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [audioLoadingId, setAudioLoadingId] = useState<string | null>(null);
   
+  // Profile editing state
+  const [tempProfileData, setTempProfileData] = useState({ username: '', chatbotName: '', bio: '' });
+
   const audioContextRef = useRef<AudioContext | null>(null);
   const currentAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -61,6 +64,17 @@ const App: React.FC = () => {
     }
   }, [sessions, currentUser]);
 
+  // Sync temp profile data when drawer opens
+  useEffect(() => {
+    if (showProfile && currentUser) {
+      setTempProfileData({
+        username: currentUser.username,
+        chatbotName: currentUser.chatbotName,
+        bio: currentUser.bio || ''
+      });
+    }
+  }, [showProfile, currentUser]);
+
   const scrollToBottom = () => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -93,6 +107,17 @@ const App: React.FC = () => {
         setCurrentUser({ ...currentUser, profilePic: reader.result as string });
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleUpdateProfile = () => {
+    if (currentUser) {
+      setCurrentUser({
+        ...currentUser,
+        username: tempProfileData.username,
+        chatbotName: tempProfileData.chatbotName,
+        bio: tempProfileData.bio
+      });
     }
   };
 
@@ -174,14 +199,15 @@ const App: React.FC = () => {
 
   return (
     <div className="fixed inset-0 flex bg-white text-slate-900 overflow-hidden font-jakarta text-[10px]">
-      {/* Sidebar (Menu) */}
-      {(isSidebarOpen || showProfile) && <div className="fixed inset-0 bg-black/30 z-40 backdrop-blur-[2px]" onClick={() => { setIsSidebarOpen(false); setShowProfile(false); }} />}
+      {/* Overlay for drawers */}
+      {(isSidebarOpen || showProfile) && <div className="fixed inset-0 bg-black/20 z-40 backdrop-blur-[1px]" onClick={() => { setIsSidebarOpen(false); setShowProfile(false); }} />}
       
+      {/* Sidebar Menu */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-52 bg-slate-950 text-white transition-transform duration-300 lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex flex-col h-full p-3.5">
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-7 h-7 bg-green-500 rounded-lg flex items-center justify-center"><Cpu size={14} className="text-slate-900" /></div>
-            <h1 className="font-black text-xs uppercase tracking-tighter">Hulu assis</h1>
+            <div className="w-7 h-7 bg-green-500 rounded-lg flex items-center justify-center"><Waves size={14} className="text-slate-900" /></div>
+            <h1 className="font-black text-xs uppercase tracking-tighter text-nowrap">Aravind's bot</h1>
           </div>
           <button onClick={() => { setCurrentSessionId(null); setIsSidebarOpen(false); }} className="w-full bg-white text-slate-900 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 mb-3 shadow active:scale-95 transition-all"><Plus size={12} /> New Uplink</button>
           <div className="flex-1 overflow-y-auto custom-scrollbar space-y-0.5 pr-0.5">
@@ -207,7 +233,7 @@ const App: React.FC = () => {
               <div className="flex items-center gap-1 mt-0.5"><div className="w-1 h-1 rounded-full bg-green-500 animate-pulse"></div><span className="text-[7px] font-black text-slate-400 uppercase tracking-widest leading-none">Verified</span></div>
             </div>
           </div>
-          <button onClick={() => { setShowProfile(true); setIsSidebarOpen(false); }} className="w-7 h-7 rounded-lg bg-slate-950 flex items-center justify-center text-white border border-white shadow shadow-slate-200 overflow-hidden active:scale-90">
+          <button onClick={() => { setShowProfile(true); setIsSidebarOpen(false); }} className="w-7 h-7 rounded-lg bg-slate-950 flex items-center justify-center text-white border border-white shadow shadow-slate-200 overflow-hidden active:scale-90 transition-all">
              {currentUser?.profilePic ? <img src={currentUser.profilePic} className="w-full h-full object-cover" /> : <UserCircle size={16} />}
           </button>
         </header>
@@ -216,8 +242,8 @@ const App: React.FC = () => {
           <div className="max-w-xl mx-auto w-full min-h-full flex flex-col">
             {currentSessionMessages.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center py-6">
-                <div className="w-12 h-12 bg-white border border-slate-100 rounded-2xl flex items-center justify-center mb-3 shadow-sm"><Cpu size={24} className="text-slate-100 animate-pulse" /></div>
-                <h3 className="text-base font-black uppercase tracking-tighter text-slate-950 mb-1">Initialize Hulu</h3>
+                <div className="w-12 h-12 bg-white border border-slate-100 rounded-2xl flex items-center justify-center mb-3 shadow-sm"><Waves size={24} className="text-slate-100 animate-pulse" /></div>
+                <h3 className="text-base font-black uppercase tracking-tighter text-slate-950 mb-1">Initialize Node</h3>
                 <p className="text-[7px] uppercase tracking-[0.2em] text-slate-300 font-bold max-w-[140px] leading-relaxed">System ready for node access</p>
               </div>
             ) : (
@@ -257,54 +283,85 @@ const App: React.FC = () => {
       </main>
 
       {/* Profile Drawer (Right Side) */}
-      <aside className={`fixed inset-y-0 right-0 z-50 w-64 bg-white text-slate-950 transition-transform duration-300 shadow-2xl ${showProfile ? 'translate-x-0' : 'translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 right-0 z-50 w-64 bg-white text-slate-950 transition-transform duration-300 shadow-2xl border-l border-slate-100 ${showProfile ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="flex flex-col h-full overflow-y-auto custom-scrollbar">
-          <div className="p-4 bg-slate-50 flex items-center justify-between border-b border-slate-100 shrink-0">
-            <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-400">Identity Node</h3>
+          <div className="p-3.5 bg-slate-50 flex items-center justify-between border-b border-slate-100 shrink-0">
+            <h3 className="font-black text-[9px] uppercase tracking-widest text-slate-400">Identity Registry</h3>
             <button onClick={() => setShowProfile(false)} className="p-1.5 bg-white rounded-lg shadow-sm border border-slate-100 active:scale-90"><X size={14} /></button>
           </div>
           
           {currentUser && (
-            <div className="flex-1">
-              <div className="p-6 flex flex-col items-center text-center">
-                <div className="relative mb-5">
-                  <div className="w-20 h-20 bg-slate-950 rounded-2xl flex items-center justify-center text-white overflow-hidden border-4 border-white shadow-lg">
-                    {currentUser.profilePic ? <img src={currentUser.profilePic} className="w-full h-full object-cover" /> : <UserCircle size={32} />}
+            <div className="flex-1 pb-6">
+              <div className="p-5 flex flex-col items-center text-center">
+                <div className="relative mb-4">
+                  <div className="w-16 h-16 bg-slate-950 rounded-2xl flex items-center justify-center text-white overflow-hidden border-4 border-white shadow-md">
+                    {currentUser.profilePic ? <img src={currentUser.profilePic} className="w-full h-full object-cover" /> : <UserCircle size={24} />}
                   </div>
-                  <button onClick={() => profilePicInputRef.current?.click()} className="absolute -bottom-1 -right-1 bg-green-500 text-slate-950 p-1.5 rounded-lg border-2 border-white active:scale-90"><Camera size={12} /></button>
+                  <button onClick={() => profilePicInputRef.current?.click()} className="absolute -bottom-1 -right-1 bg-green-500 text-slate-950 p-1 rounded-lg border-2 border-white shadow active:scale-90"><Camera size={12} /></button>
                   <input type="file" ref={profilePicInputRef} className="hidden" accept="image/*" onChange={handleProfilePicChange} />
                 </div>
-                <h3 className="font-black text-base uppercase tracking-tighter text-slate-950 leading-none">{currentUser.username}</h3>
-                <p className="text-[8px] font-black text-green-500 uppercase tracking-[0.2em] mt-1.5">Verified Identity Node</p>
-                {currentUser.bio && (
-                  <p className="mt-4 text-[9px] text-slate-500 font-medium leading-relaxed italic border-l-2 border-slate-100 pl-3">"{currentUser.bio}"</p>
-                )}
+                
+                <div className="w-full space-y-3 px-1 text-left">
+                  <div>
+                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5 block px-1">Legal Name</label>
+                    <div className="relative group">
+                      <input 
+                        className="w-full bg-slate-50 border border-slate-100 rounded-lg py-1.5 px-2.5 text-[9px] font-bold outline-none focus:border-slate-300 focus:bg-white transition-all"
+                        value={tempProfileData.username}
+                        onChange={e => setTempProfileData({...tempProfileData, username: e.target.value})}
+                      />
+                      <Edit3 size={8} className="absolute right-2.5 top-2.5 text-slate-300 group-hover:text-slate-400" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5 block px-1">Bot Designation</label>
+                    <div className="relative group">
+                      <input 
+                        className="w-full bg-slate-50 border border-slate-100 rounded-lg py-1.5 px-2.5 text-[9px] font-bold outline-none focus:border-slate-300 focus:bg-white transition-all"
+                        value={tempProfileData.chatbotName}
+                        onChange={e => setTempProfileData({...tempProfileData, chatbotName: e.target.value})}
+                      />
+                      <Edit3 size={8} className="absolute right-2.5 top-2.5 text-slate-300 group-hover:text-slate-400" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5 block px-1">Identity Bio</label>
+                    <textarea 
+                      placeholder="Add a bio describing your node..."
+                      className="w-full bg-slate-50 border border-slate-100 rounded-lg py-2 px-2.5 text-[9px] font-medium outline-none focus:border-slate-300 focus:bg-white transition-all resize-none h-16 leading-relaxed"
+                      value={tempProfileData.bio}
+                      onChange={e => setTempProfileData({...tempProfileData, bio: e.target.value})}
+                    />
+                  </div>
+                  
+                  <button 
+                    onClick={handleUpdateProfile} 
+                    className="w-full py-2 bg-slate-950 text-white rounded-lg font-black uppercase tracking-widest text-[8px] flex items-center justify-center gap-1.5 active:scale-95 transition-all shadow-md mt-1"
+                  >
+                    <Save size={10} /> Update Identity
+                  </button>
+                </div>
               </div>
               
-              <div className="px-5 pb-6 space-y-2">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1 leading-none">BOT DESIGNATION</p>
-                  <div className="flex items-center gap-2">
-                    <Cpu size={12} className="text-slate-300 shrink-0" />
-                    <p className="font-bold text-slate-800 text-[10px]">{currentUser.chatbotName}</p>
+              <div className="px-5 space-y-2.5 border-t border-slate-100 pt-5">
+                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between opacity-80">
+                  <div>
+                    <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5 leading-none">Immutable Mobile</p>
+                    <p className="font-bold text-slate-500 text-[9px]">{currentUser.phoneNumber}</p>
                   </div>
+                  <Smartphone className="text-slate-300" size={12} />
                 </div>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1 leading-none">MOBILE UPLINK</p>
-                  <div className="flex items-center gap-2">
-                    <Smartphone size={12} className="text-slate-300 shrink-0" />
-                    <p className="font-bold text-slate-800 text-[10px]">{currentUser.phoneNumber}</p>
+                <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between opacity-80">
+                  <div>
+                    <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5 leading-none">Registry Date</p>
+                    <p className="font-bold text-slate-500 text-[9px]">{new Date(currentUser.createdAt).toLocaleDateString()}</p>
                   </div>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1 leading-none">REGISTRY DATE</p>
-                  <div className="flex items-center gap-2">
-                    <FileText size={12} className="text-slate-300 shrink-0" />
-                    <p className="font-bold text-slate-800 text-[10px]">{new Date(currentUser.createdAt).toLocaleDateString()}</p>
-                  </div>
+                  <FileText className="text-slate-300" size={12} />
                 </div>
                 
-                <button onClick={handleLogout} className="w-full py-3.5 bg-red-600 text-white rounded-xl font-black uppercase tracking-[0.2em] text-[8px] shadow-lg active:scale-95 flex items-center justify-center gap-2 mt-6"><LogOut size={12} /> TERMINATE ACCESS</button>
+                <button onClick={handleLogout} className="w-full py-3 bg-red-600 text-white rounded-xl font-black uppercase tracking-[0.2em] text-[8px] shadow-lg active:scale-95 flex items-center justify-center gap-2 mt-4"><LogOut size={12} /> TERMINATE ACCESS</button>
               </div>
             </div>
           )}
@@ -371,7 +428,7 @@ const App: React.FC = () => {
 const AuthScreen: React.FC<{ onLogin: (u: UserAccount) => void }> = ({ onLogin }) => {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [step, setStep] = useState<'details' | 'otp'>('details');
-  const [formData, setFormData] = useState({ username: '', phoneNumber: '', password: '', confirmPassword: '', chatbotName: '', bio: '' });
+  const [formData, setFormData] = useState({ username: '', phoneNumber: '', password: '', confirmPassword: '', chatbotName: '' });
   const [otpValue, setOtpValue] = useState('');
   const [generatedOtp, setGeneratedOtp] = useState('');
   const [error, setError] = useState('');
@@ -380,6 +437,9 @@ const AuthScreen: React.FC<{ onLogin: (u: UserAccount) => void }> = ({ onLogin }
   const triggerSignup = () => {
     if (!formData.username || !formData.phoneNumber || !formData.password || !formData.chatbotName) {
       return setError('DATA INCOMPLETE.');
+    }
+    if (formData.phoneNumber.length !== 10) {
+      return setError('INVALID MOBILE ID (10 DIGITS).');
     }
     if (formData.password !== formData.confirmPassword) {
       return setError('PASSKEYS MISMATCH.');
@@ -403,7 +463,7 @@ const AuthScreen: React.FC<{ onLogin: (u: UserAccount) => void }> = ({ onLogin }
       } else setError('INVALID CREDENTIALS.');
     } else {
       if (otpValue === generatedOtp) {
-        const u = { id: Date.now().toString(), ...formData, createdAt: Date.now(), isBlocked: false };
+        const u = { id: Date.now().toString(), ...formData, createdAt: Date.now(), isBlocked: false, bio: '' };
         localStorage.setItem('hulu_accounts', JSON.stringify([...accs, u]));
         onLogin(u);
       } else setError('INVALID CODE.');
@@ -426,9 +486,9 @@ const AuthScreen: React.FC<{ onLogin: (u: UserAccount) => void }> = ({ onLogin }
           <div className="text-center mb-5">
             <div className="w-10 h-10 bg-slate-950 rounded-xl mx-auto mb-3 flex items-center justify-center text-green-400 relative overflow-hidden group">
                <div className="absolute inset-0 bg-gradient-to-tr from-green-500/10 to-transparent"></div>
-               <Cpu size={20} className="relative" />
+               <Waves size={20} className="relative" />
             </div>
-            <h2 className="text-xl font-black uppercase tracking-tighter text-slate-950 leading-none">Hulu</h2>
+            <h2 className="text-xl font-black uppercase tracking-tighter text-slate-950 leading-none">Aravind's bot</h2>
             <p className="text-[7px] text-slate-400 font-black uppercase tracking-[0.3em] mt-1.5 leading-none">{mode === 'login' ? 'Auth Interface' : step === 'otp' ? 'Verification' : 'Registry'}</p>
           </div>
 
@@ -450,13 +510,16 @@ const AuthScreen: React.FC<{ onLogin: (u: UserAccount) => void }> = ({ onLogin }
                   <input placeholder="BOT DESIGNATION" className="w-full bg-slate-50 border border-slate-100 rounded-lg py-2.5 px-3.5 text-[9px] font-bold outline-none focus:border-slate-950 transition-all" value={formData.chatbotName} onChange={e => setFormData({ ...formData, chatbotName: e.target.value })} />
                 </>
               )}
-              <input placeholder="MOBILE ID" className="w-full bg-slate-50 border border-slate-100 rounded-lg py-2.5 px-3.5 text-[9px] font-bold outline-none focus:border-slate-950 transition-all" value={formData.phoneNumber} onChange={e => setFormData({ ...formData, phoneNumber: e.target.value })} />
+              <input 
+                placeholder="MOBILE ID" 
+                maxLength={10}
+                className="w-full bg-slate-50 border border-slate-100 rounded-lg py-2.5 px-3.5 text-[9px] font-bold outline-none focus:border-slate-950 transition-all" 
+                value={formData.phoneNumber} 
+                onChange={e => setFormData({ ...formData, phoneNumber: e.target.value.replace(/\D/g, '') })} 
+              />
               <input type="password" placeholder="PASSKEY" className="w-full bg-slate-50 border border-slate-100 rounded-lg py-2.5 px-3.5 text-[9px] font-bold outline-none focus:border-slate-950 transition-all" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} />
               {mode === 'signup' && (
-                <>
-                  <input type="password" placeholder="CONFIRM" className="w-full bg-slate-50 border border-slate-100 rounded-lg py-2.5 px-3.5 text-[9px] font-bold outline-none focus:border-slate-950 transition-all" value={formData.confirmPassword} onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })} />
-                  <textarea placeholder="USER BIO (OPTIONAL)" className="w-full bg-slate-50 border border-slate-100 rounded-lg py-2 px-3.5 text-[9px] font-bold outline-none focus:border-slate-950 transition-all resize-none h-12" value={formData.bio} onChange={e => setFormData({ ...formData, bio: e.target.value })} />
-                </>
+                <input type="password" placeholder="CONFIRM" className="w-full bg-slate-50 border border-slate-100 rounded-lg py-2.5 px-3.5 text-[9px] font-bold outline-none focus:border-slate-950 transition-all" value={formData.confirmPassword} onChange={e => setFormData({ ...formData, confirmPassword: e.target.value })} />
               )}
               {error && <p className="text-[8px] font-black text-red-500 text-center uppercase bg-red-50 py-1.5 rounded-md">{error}</p>}
               <button type="submit" className="w-full bg-slate-950 text-white py-3.5 rounded-xl font-black uppercase tracking-[0.2em] text-[8px] shadow active:scale-95 transition-all mt-2">INITIATE ACCESS</button>
