@@ -2,13 +2,10 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { ChatMessage } from "../types";
 
-const MASTER_PROMPT = `You are "Aravind's bot", a world-class AI assistant developed for Aravind. 
+const MASTER_PROMPT = `You are "Aravind's bot", a world-class AI assistant. 
 You provide elite, accurate, and helpful responses. Use Markdown for formatting.
-Always respond as the user's chosen Bot identity if applicable. 
-You are currently powered by the Gemini 2.5 Flash engine.`;
-
-// Using the provided API key as a fallback to ensure the user gets responses immediately
-const API_KEY = process.env.API_KEY || "AIzaSyC12LW4wzwTPPtS6BekGUzv75QeO3H3u-A";
+Respond as the user's chosen Bot identity if applicable. 
+You are currently powered by the Gemini 3 Flash engine.`;
 
 export const geminiService = {
   async chatWithHistory(
@@ -17,11 +14,11 @@ export const geminiService = {
     media?: { data: string; mimeType: string },
     signal?: AbortSignal
   ) {
-    if (!API_KEY || API_KEY === "undefined") {
-      throw new Error("API_KEY_MISSING");
+    if (!process.env.API_KEY) {
+      throw new Error("API Key is not configured. Please check your environment.");
     }
 
-    const ai = new GoogleGenAI({ apiKey: API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const contents = history.map(msg => ({
       role: msg.role === 'user' ? 'user' : 'model',
@@ -43,7 +40,7 @@ export const geminiService = {
 
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         contents: contents as any,
         config: {
           systemInstruction: MASTER_PROMPT,
@@ -57,15 +54,15 @@ export const geminiService = {
       return response;
     } catch (error: any) {
       if (error.message === 'AbortError') throw error;
-      console.error("Transmission Error:", error);
+      console.error("Gemini Service Error:", error);
       throw error;
     }
   },
 
   async textToSpeech(text: string) {
-    if (!API_KEY || API_KEY === "undefined") return null;
+    if (!process.env.API_KEY) return null;
     
-    const ai = new GoogleGenAI({ apiKey: API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
       const cleanText = text.replace(/[`*#]/g, '').slice(0, 300);
       const response = await ai.models.generateContent({

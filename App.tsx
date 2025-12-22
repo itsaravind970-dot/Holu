@@ -5,10 +5,10 @@ import { geminiService } from './services/geminiService';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import { 
-  MessageSquare, Plus, Menu, X, Loader2, Waves, Smartphone, UserCircle, LogOut, Zap, AlertCircle, Camera, Save, Eye, EyeOff, Fingerprint
+  MessageSquare, Plus, Menu, X, Loader2, Waves, Smartphone, UserCircle, LogOut, Zap, AlertCircle, Camera, Save, Eye, EyeOff, Fingerprint, ShieldCheck
 } from 'lucide-react';
 
-const CLOUD_STORAGE_KEY = 'aravind_user_registry_v13';
+const CLOUD_STORAGE_KEY = 'aravind_user_registry_v14_final';
 const CLOUD_URL = `https://kvdb.io/MWpXp2A1oB6yq7X9Z4Y8R/${CLOUD_STORAGE_KEY}`;
 
 const App: React.FC = () => {
@@ -101,7 +101,18 @@ const App: React.FC = () => {
     try {
       const history = sessions.find(s => s.id === activeId)?.messages || [];
       const res = await geminiService.chatWithHistory(history, text, file);
-      const botMsg: ChatMessageType = { id: Date.now().toString(), role: 'model', parts: [{ text: res.text }], timestamp: Date.now(), groundingSources: res.candidates?.[0]?.groundingMetadata?.groundingChunks };
+      
+      // Extraction of generated text using the property .text
+      const generatedText = res.text || "No intelligence response available.";
+      
+      const botMsg: ChatMessageType = { 
+        id: Date.now().toString(), 
+        role: 'model', 
+        parts: [{ text: generatedText }], 
+        timestamp: Date.now(), 
+        groundingSources: res.candidates?.[0]?.groundingMetadata?.groundingChunks 
+      };
+      
       setSessions(prev => prev.map(s => s.id === activeId ? { ...s, messages: [...s.messages, botMsg], updatedAt: Date.now() } : s));
     } catch (e: any) { 
       console.error(e.message);
@@ -166,7 +177,7 @@ const App: React.FC = () => {
             {isLoading && (
               <div className="p-10 flex flex-col items-center gap-4">
                  <Loader2 className="animate-spin text-green-500" size={28} />
-                 <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.4em]">Processing...</span>
+                 <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.4em]">Synthesizing Response...</span>
               </div>
             )}
           </div>
@@ -252,7 +263,7 @@ const AuthScreen: React.FC<{
   }, [resendTimer]);
 
   const initiateOtp = () => {
-    if (!formData.username || !formData.phoneNumber || !formData.password || !formData.confirmPassword || !formData.chatbotName) return setError('Fill all details.');
+    if (!formData.username || !formData.phoneNumber || !formData.password || !formData.confirmPassword || !formData.chatbotName) return setError('Fill all fields.');
     if (formData.phoneNumber.length !== 10) return setError('10 digit number required.');
     if (formData.password !== formData.confirmPassword) return setError('Passwords mismatch.');
     
@@ -263,7 +274,7 @@ const AuthScreen: React.FC<{
     setResendTimer(15);
     setError('');
     
-    setTimeout(() => setOtpSplash(false), 8000);
+    setTimeout(() => setOtpSplash(false), 9000);
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -290,7 +301,7 @@ const AuthScreen: React.FC<{
       } else {
         if (otpValue === generatedOtp) {
           if (registry.some(a => a.phoneNumber === formData.phoneNumber)) {
-            setError('Already registered.');
+            setError('Mobile identifier already exists.');
           } else {
             const newUser: UserAccount = { id: Date.now().toString(), ...formData, createdAt: Date.now(), lastLoginAt: Date.now(), searchCount: 0, isBlocked: false, bio: '' };
             await onGlobalSync(newUser);
@@ -307,29 +318,29 @@ const AuthScreen: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-8 bg-[#f8fafc] overflow-y-auto">
-      {/* COMPACT OTP NOTIFICATION AT TOP */}
+    <div className="fixed inset-0 flex items-center justify-center p-12 bg-slate-50 overflow-y-auto">
+      {/* OTP NOTIFICATION AT TOP - CLEAN & FLOATING */}
       {otpSplash && (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[300] w-[260px] animate-in slide-in-from-top-12 duration-500">
-           <div className="bg-slate-950 p-4 rounded-[28px] shadow-2xl border border-white/10 text-center relative overflow-hidden">
-              <p className="text-[8px] font-black text-green-500 uppercase tracking-widest mb-2">Auth Cipher</p>
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[300] w-[240px] animate-in slide-in-from-top-12 duration-500">
+           <div className="bg-slate-950 p-4 rounded-[28px] shadow-2xl border border-white/10 text-center relative overflow-hidden ring-1 ring-slate-900">
+              <p className="text-[8px] font-black text-green-500 uppercase tracking-widest mb-2">Nexus Cipher</p>
               <h4 className="text-2xl font-black text-white font-mono tracking-widest">{generatedOtp}</h4>
-              <div className="mt-3 h-0.5 bg-white/5 rounded-full overflow-hidden">
-                 <div className="h-full bg-green-500 animate-[shrink_8s_linear_forwards]" style={{width: '100%'}}></div>
+              <div className="mt-3 h-1 bg-white/5 rounded-full overflow-hidden">
+                 <div className="h-full bg-green-500 animate-[shrink_9s_linear_forwards]" style={{width: '100%'}}></div>
               </div>
            </div>
         </div>
       )}
 
-      {/* ULTRA-COMPACT AUTH CONTAINER - GEMINI STYLE WITH SIDE MARGINS */}
-      <div className="w-full max-w-[290px] bg-white p-7 rounded-[48px] shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-500 my-auto mx-auto ring-1 ring-slate-100">
+      {/* ULTRA-COMPACT GROK-STYLE AUTH CONTAINER */}
+      <div className="w-full max-w-[270px] bg-white p-7 rounded-[48px] shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-500 my-auto mx-auto ring-1 ring-slate-200/50">
          <div className="text-center mb-8">
             <div className="w-12 h-12 bg-slate-950 rounded-[22px] mx-auto mb-6 flex items-center justify-center text-green-400 shadow-xl shadow-green-400/5">
                <Waves size={24} />
             </div>
             <h2 className="text-xl font-black uppercase text-slate-950 tracking-tighter leading-none mb-2">Aravind Bot</h2>
-            <p className="text-[8px] text-slate-400 font-black uppercase tracking-[0.3em]">
-              {mode === 'login' ? 'Nexus Login' : 'Identity Genesis'}
+            <p className="text-[8px] text-slate-400 font-black uppercase tracking-[0.3em] leading-none">
+              {mode === 'login' ? 'Authorized Access' : 'Create Identity'}
             </p>
          </div>
 
@@ -337,20 +348,20 @@ const AuthScreen: React.FC<{
            <form onSubmit={handleAuth} className="space-y-6">
              <div className="space-y-2 text-center">
                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest block">Input Cipher</label>
-                <input placeholder="000000" maxLength={6} className="w-full bg-slate-50 border border-slate-100 rounded-[20px] py-3.5 text-center text-2xl font-black tracking-widest outline-none focus:bg-white focus:border-slate-950 font-mono shadow-inner" value={otpValue} onChange={e => setOtpValue(e.target.value.replace(/\D/g, ''))} />
+                <input placeholder="000000" maxLength={6} className="w-full bg-slate-50 border border-slate-100 rounded-[20px] py-3.5 text-center text-2xl font-black tracking-widest outline-none focus:bg-white focus:border-slate-950 font-mono shadow-inner transition-all" value={otpValue} onChange={e => setOtpValue(e.target.value.replace(/\D/g, ''))} />
              </div>
              {error && <p className="text-[8px] font-black text-red-500 uppercase text-center tracking-widest">{error}</p>}
              <button type="submit" disabled={isBusy || otpValue.length < 6} className="w-full bg-slate-950 text-white py-4 rounded-[24px] font-black uppercase text-[10px] tracking-[0.3em] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3">
-                {isBusy ? <Loader2 size={16} className="animate-spin" /> : <Fingerprint size={16} />} Verify
+                {isBusy ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />} Verify
              </button>
              <button type="button" disabled={resendTimer > 0} onClick={() => { 
                 const code = Math.floor(100000 + Math.random() * 900000).toString();
                 setGeneratedOtp(code);
                 setOtpSplash(true);
                 setResendTimer(15);
-                setTimeout(() => setOtpSplash(false), 8000);
-             }} className="w-full text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">
-               {resendTimer > 0 ? `Retry in ${resendTimer}s` : 'Request New Code'}
+                setTimeout(() => setOtpSplash(false), 9000);
+             }} className="w-full text-[9px] font-black text-slate-400 uppercase tracking-widest text-center hover:text-slate-900 transition-colors">
+               {resendTimer > 0 ? `Resend ${resendTimer}s` : 'New Cipher'}
              </button>
            </form>
          ) : (
@@ -358,12 +369,12 @@ const AuthScreen: React.FC<{
               {mode === 'signup' && (
                  <>
                    <div className="space-y-1">
-                      <label className="text-[8px] font-black uppercase text-slate-400 tracking-widest ml-4">Full Name</label>
-                      <input placeholder="Aravind" className="w-full bg-slate-50 border border-slate-100 rounded-[18px] py-3 px-5 text-[11px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} />
+                      <label className="text-[8px] font-black uppercase text-slate-400 tracking-widest ml-4">Name</label>
+                      <input placeholder="Enter Name" className="w-full bg-slate-50 border border-slate-100 rounded-[18px] py-3 px-5 text-[11px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} />
                    </div>
                    <div className="space-y-1">
-                      <label className="text-[8px] font-black uppercase text-slate-400 tracking-widest ml-4">Bot Tag</label>
-                      <input placeholder="Jarvis" className="w-full bg-slate-50 border border-slate-100 rounded-[18px] py-3 px-5 text-[11px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.chatbotName} onChange={e => setFormData({...formData, chatbotName: e.target.value})} />
+                      <label className="text-[8px] font-black uppercase text-slate-400 tracking-widest ml-4">Bot Persona</label>
+                      <input placeholder="AI Name" className="w-full bg-slate-50 border border-slate-100 rounded-[18px] py-3 px-5 text-[11px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.chatbotName} onChange={e => setFormData({...formData, chatbotName: e.target.value})} />
                    </div>
                  </>
               )}
@@ -379,12 +390,12 @@ const AuthScreen: React.FC<{
                  <div className="relative">
                     <Fingerprint size={14} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input type={showPass ? "text" : "password"} placeholder="••••••••" className="w-full bg-slate-50 border border-slate-100 rounded-[18px] py-3 pl-12 pr-12 text-[11px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
-                    <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-950">{showPass ? <EyeOff size={14} /> : <Eye size={14} />}</button>
+                    <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-950 transition-colors">{showPass ? <EyeOff size={14} /> : <Eye size={14} />}</button>
                  </div>
               </div>
               {mode === 'signup' && (
                 <div className="space-y-1">
-                   <label className="text-[8px] font-black uppercase text-slate-400 tracking-widest ml-4">Verify</label>
+                   <label className="text-[8px] font-black uppercase text-slate-400 tracking-widest ml-4">Repeat</label>
                    <input type="password" placeholder="••••••••" className="w-full bg-slate-50 border border-slate-100 rounded-[18px] py-3 px-5 text-[11px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.confirmPassword} onChange={e => setFormData({...formData, confirmPassword: e.target.value})} />
                 </div>
               )}
@@ -396,7 +407,7 @@ const AuthScreen: React.FC<{
            </form>
          )}
          <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setStep('details'); setError(''); }} className="w-full mt-8 text-[9px] font-black uppercase text-slate-400 tracking-[0.4em] hover:text-slate-950 transition-all text-center">
-           {mode === 'login' ? 'New identity? Join' : 'Existing node? Login'}
+           {mode === 'login' ? 'New? Join Identity' : 'Existing? Return Login'}
          </button>
       </div>
       
