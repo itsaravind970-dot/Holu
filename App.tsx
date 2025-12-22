@@ -5,7 +5,7 @@ import { geminiService, decodeAudioData } from './services/geminiService';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import { 
-  MessageSquare, Plus, Menu, X, User, Loader2, Waves, Lock, Smartphone, UserCircle, LogOut, ShieldCheck, Zap, AlertCircle, RefreshCw, Camera, Trash2, Ban, CheckCircle, Fingerprint, Info, Key, FileText, Save, Edit3, ClipboardList
+  MessageSquare, Plus, Menu, X, User, Loader2, Waves, Lock, Smartphone, UserCircle, LogOut, ShieldCheck, Zap, AlertCircle, RefreshCw, Camera, Trash2, Ban, CheckCircle, Fingerprint, Info, Key, FileText, Save, Edit3, ClipboardList, Copy, Download, Share2, Database
 } from 'lucide-react';
 
 const SECRET_ADMIN_CODE = 'Aravind63091309709705371970';
@@ -26,6 +26,9 @@ const App: React.FC = () => {
   
   // Profile editing state
   const [tempProfileData, setTempProfileData] = useState({ username: '', chatbotName: '', bio: '' });
+  // Admin Sync state
+  const [syncInput, setSyncInput] = useState('');
+  const [showSyncPanel, setShowSyncPanel] = useState(false);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const currentAudioSourceRef = useRef<AudioBufferSourceNode | null>(null);
@@ -193,6 +196,34 @@ const App: React.FC = () => {
         source.start();
       }
     } catch (e) { setAudioLoadingId(null); }
+  };
+
+  const handleExportData = () => {
+    const data = JSON.stringify(adminAccounts, null, 2);
+    navigator.clipboard.writeText(data);
+    alert('Registry copied to clipboard. You can now paste this on another device to sync users.');
+  };
+
+  const handleImportData = () => {
+    try {
+      const parsed: UserAccount[] = JSON.parse(syncInput);
+      if (Array.isArray(parsed)) {
+        const existing: UserAccount[] = JSON.parse(localStorage.getItem('hulu_accounts') || '[]');
+        // Merge without duplicates (using phoneNumber as unique ID)
+        const mergedMap = new Map();
+        existing.forEach(a => mergedMap.set(a.phoneNumber, a));
+        parsed.forEach(a => mergedMap.set(a.phoneNumber, a));
+        const mergedArray = Array.from(mergedMap.values());
+        
+        localStorage.setItem('hulu_accounts', JSON.stringify(mergedArray));
+        setAdminAccounts(mergedArray);
+        setSyncInput('');
+        setShowSyncPanel(false);
+        alert('Global Registry Updated Successfully.');
+      }
+    } catch (e) {
+      alert('INVALID REGISTRY FORMAT.');
+    }
   };
 
   if (isAuthView) {
@@ -370,85 +401,132 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      {/* Secret Admin Panel */}
+      {/* Master Secret Admin Panel */}
       {showAdminPanel && (
-        <div className="fixed inset-0 z-[200] bg-black flex flex-col animate-in fade-in duration-500">
-          <div className="flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800 shrink-0">
-             <div className="flex items-center gap-2.5">
-                <div className="p-1.5 bg-red-500/10 rounded-lg text-red-500"><ShieldCheck size={18} /></div>
+        <div className="fixed inset-0 z-[200] bg-[#02040a] flex flex-col animate-in fade-in duration-500 overflow-hidden">
+          <div className="flex items-center justify-between p-4 bg-slate-950 border-b border-white/10 shrink-0">
+             <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-600 rounded-xl text-white shadow-lg shadow-red-900/20"><ShieldCheck size={20} /></div>
                 <div>
-                  <h2 className="text-sm font-black text-white uppercase tracking-tighter leading-none">Intelligence Master Registry</h2>
-                  <p className="text-[6px] font-black text-red-500 uppercase tracking-[0.2em] mt-0.5">Secure Oversight Node</p>
+                  <h2 className="text-sm font-black text-white uppercase tracking-tighter leading-none">Master Control Center</h2>
+                  <p className="text-[6px] font-black text-red-500 uppercase tracking-[0.3em] mt-1 animate-pulse">Global Identity Node Surveillance • {adminAccounts.length} Connected</p>
                 </div>
              </div>
-             <button onClick={() => setShowAdminPanel(false)} className="p-2 bg-slate-800 text-white rounded-lg active:scale-90 transition-all hover:bg-slate-700"><X size={16} /></button>
+             <div className="flex items-center gap-2">
+                <button onClick={() => setShowSyncPanel(!showSyncPanel)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all border ${showSyncPanel ? 'bg-green-500 text-slate-950 border-green-500' : 'bg-white/10 text-white border-white/5 hover:bg-white/20'}`}><Database size={12} /> Sync Registry</button>
+                <button onClick={() => { setShowAdminPanel(false); setShowSyncPanel(false); }} className="p-2 bg-slate-800 text-white rounded-lg active:scale-90 transition-all hover:bg-slate-700"><X size={16} /></button>
+             </div>
           </div>
-          <div className="flex-1 bg-[#090b14] overflow-y-auto p-4 space-y-3 custom-scrollbar">
+
+          {showSyncPanel && (
+            <div className="p-4 bg-slate-900 border-b border-white/10 animate-in slide-in-from-top duration-300">
+               <div className="max-w-xl mx-auto space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Cross-Device Synchronization Hub</h4>
+                    <span className="text-[6px] text-slate-500 italic">Paste JSON from another device to merge registries</span>
+                  </div>
+                  <textarea 
+                    placeholder="Paste master registry JSON here..."
+                    className="w-full bg-black/50 border border-white/5 rounded-xl p-3 text-[10px] text-green-400 font-mono h-24 outline-none focus:border-green-500/30 transition-all resize-none"
+                    value={syncInput}
+                    onChange={e => setSyncInput(e.target.value)}
+                  />
+                  <div className="flex gap-2">
+                    <button onClick={handleImportData} className="flex-1 bg-green-500 text-slate-950 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-1.5"><RefreshCw size={12} /> Execute Merge</button>
+                    <button onClick={handleExportData} className="flex-1 bg-white/10 text-white py-2 rounded-lg text-[8px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-1.5 border border-white/5"><Share2 size={12} /> Copy Local Registry</button>
+                  </div>
+               </div>
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
              {adminAccounts.length === 0 ? (
-               <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
-                  <ClipboardList size={40} className="text-slate-700 mb-4" />
-                  <p className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-500">No active identities found in memory</p>
+               <div className="h-full flex flex-col items-center justify-center text-center p-12 opacity-30">
+                  <div className="w-16 h-16 bg-slate-900 rounded-3xl flex items-center justify-center mb-4"><ClipboardList size={32} className="text-slate-700" /></div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500">Identity Memory Empty</p>
+                  <p className="text-[7px] text-slate-600 mt-2">NO NODES DETECTED IN LOCAL REGISTRY</p>
                </div>
-             ) : adminAccounts.map((acc, idx) => (
-               <div key={idx} className={`p-4 rounded-2xl border transition-all ${acc.isBlocked ? 'bg-red-900/10 border-red-800/50 opacity-60' : 'bg-slate-900 border-slate-800/50'}`}>
-                 <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-4">
-                       <div className="w-14 h-14 bg-slate-800 rounded-2xl flex items-center justify-center text-white overflow-hidden border-2 border-slate-700 shadow-xl shrink-0">
-                          {acc.profilePic ? (
-                            <img src={acc.profilePic} className="w-full h-full object-cover" alt={acc.username} />
-                          ) : (
-                            <UserCircle size={28} className="text-slate-600" />
-                          )}
-                       </div>
-                       <div>
-                          <p className="font-black text-white uppercase tracking-tighter text-sm leading-tight mb-0.5">{acc.username}</p>
-                          <p className="text-[8px] font-bold text-green-500 tracking-widest uppercase mb-1 flex items-center gap-1">
-                            <Waves size={8} /> {acc.chatbotName}
-                          </p>
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1 text-slate-400">
-                              <Smartphone size={8} />
-                              <span className="text-[7px] font-bold">{acc.phoneNumber}</span>
-                            </div>
-                            <div className="flex items-center gap-1 text-slate-400">
-                              <FileText size={8} />
-                              <span className="text-[7px] font-bold">{new Date(acc.createdAt).toLocaleDateString()}</span>
-                            </div>
-                          </div>
-                       </div>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                       <button onClick={() => {
-                         const updated = adminAccounts.map(a => a.id === acc.id ? { ...a, isBlocked: !a.isBlocked } : a);
-                         localStorage.setItem('hulu_accounts', JSON.stringify(updated));
-                         setAdminAccounts(updated);
-                       }} className={`p-2.5 rounded-xl transition-all ${acc.isBlocked ? 'bg-green-500 text-slate-950' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
-                         {acc.isBlocked ? <CheckCircle size={14} /> : <Ban size={14} />}
-                       </button>
-                       <button onClick={() => {
-                         const updated = adminAccounts.filter(a => a.id !== acc.id);
-                         localStorage.setItem('hulu_accounts', JSON.stringify(updated));
-                         setAdminAccounts(updated);
-                       }} className="p-2.5 bg-red-600 text-white rounded-xl shadow-lg active:scale-90"><Trash2 size={14} /></button>
-                    </div>
-                 </div>
+             ) : (
+               <div className="max-w-2xl mx-auto space-y-4">
+                 {adminAccounts.map((acc, idx) => (
+                   <div key={idx} className={`group p-4 rounded-3xl border transition-all duration-300 relative overflow-hidden ${acc.isBlocked ? 'bg-red-900/5 border-red-800/30' : 'bg-[#0b0e1a] border-white/5 hover:border-white/10 shadow-2xl shadow-black/50'}`}>
+                     <div className="flex items-start justify-between relative z-10">
+                        <div className="flex items-center gap-5">
+                           <div className="w-20 h-20 bg-slate-800 rounded-3xl flex items-center justify-center text-white overflow-hidden border-2 border-slate-700 shadow-2xl shadow-black ring-4 ring-black/50 group-hover:ring-green-500/20 transition-all duration-500 shrink-0">
+                              {acc.profilePic ? (
+                                <img src={acc.profilePic} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700" alt={acc.username} />
+                              ) : (
+                                <UserCircle size={40} className="text-slate-600" />
+                              )}
+                           </div>
+                           <div className="space-y-1.5">
+                              <div>
+                                <p className="font-black text-white uppercase tracking-tighter text-base leading-tight group-hover:text-green-400 transition-colors">{acc.username}</p>
+                                <p className="text-[8px] font-black text-green-500 tracking-[0.3em] uppercase flex items-center gap-1.5 mt-0.5">
+                                  <Waves size={10} className="animate-pulse" /> {acc.chatbotName}
+                                </p>
+                              </div>
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-3">
+                                <div className="flex items-center gap-2 text-slate-400">
+                                  <Smartphone size={10} className="text-slate-600" />
+                                  <span className="text-[8px] font-bold tracking-widest">{acc.phoneNumber}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-slate-400">
+                                  <FileText size={10} className="text-slate-600" />
+                                  <span className="text-[8px] font-bold tracking-widest">{new Date(acc.createdAt).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+                              {acc.bio && (
+                                <div className="mt-3 bg-black/60 p-2.5 rounded-xl border border-white/5 max-w-[280px]">
+                                   <p className="text-[8px] text-slate-400 font-medium italic leading-relaxed">"{acc.bio}"</p>
+                                </div>
+                              )}
+                           </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                           <button onClick={() => {
+                             const updated = adminAccounts.map(a => a.id === acc.id ? { ...a, isBlocked: !a.isBlocked } : a);
+                             localStorage.setItem('hulu_accounts', JSON.stringify(updated));
+                             setAdminAccounts(updated);
+                           }} className={`p-3 rounded-2xl transition-all shadow-lg ${acc.isBlocked ? 'bg-green-500 text-slate-950 scale-110' : 'bg-red-600/10 text-red-500 border border-red-600/20 hover:bg-red-600 hover:text-white'}`}>
+                             {acc.isBlocked ? <CheckCircle size={18} /> : <Ban size={18} />}
+                           </button>
+                           <button onClick={() => {
+                             if(confirm('TERMINATE IDENTITY PERMANENTLY?')) {
+                               const updated = adminAccounts.filter(a => a.id !== acc.id);
+                               localStorage.setItem('hulu_accounts', JSON.stringify(updated));
+                               setAdminAccounts(updated);
+                             }
+                           }} className="p-3 bg-slate-900 text-white rounded-2xl shadow-lg active:scale-90 hover:bg-red-600 transition-all border border-white/5"><Trash2 size={18} /></button>
+                        </div>
+                     </div>
 
-                 {acc.bio && (
-                   <div className="mb-4 bg-black/40 p-2.5 rounded-lg border-l-2 border-slate-700">
-                      <p className="text-[8px] text-slate-400 font-medium italic leading-relaxed">"{acc.bio}"</p>
+                     <div className="mt-5 bg-black/80 p-4 rounded-2xl flex justify-between items-center border border-white/5 relative group/pass overflow-hidden shadow-inner">
+                        <div className="absolute inset-0 bg-green-500/5 opacity-0 group-hover/pass:opacity-100 transition-opacity"></div>
+                        <div className="relative z-10">
+                          <span className="text-[7px] font-black text-slate-500 uppercase tracking-[0.3em] block mb-1 leading-none">IDENTITY PASSKEY</span>
+                          <span className="font-mono text-green-400 font-black text-lg tracking-[0.35em] leading-none">{acc.password}</span>
+                        </div>
+                        <div className="flex items-center gap-2 relative z-10">
+                           <button onClick={() => { 
+                             navigator.clipboard.writeText(acc.password || '');
+                             const btn = document.activeElement;
+                             if(btn) btn.innerHTML = '<span class="text-[8px]">COPIED</span>';
+                             setTimeout(() => { if(btn) btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>'; }, 2000);
+                           }} className="p-2 bg-white/5 rounded-xl text-white hover:bg-white/10 transition-all active:scale-90 border border-white/5"><Copy size={12} /></button>
+                           <Key className="text-slate-700 group-hover/pass:text-green-500 transition-colors" size={24} />
+                        </div>
+                     </div>
+                     
+                     <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/5 blur-[80px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
                    </div>
-                 )}
-
-                 <div className="bg-black/60 p-3 rounded-xl flex justify-between items-center border border-white/5 group relative overflow-hidden">
-                    <div className="absolute inset-0 bg-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <div className="relative">
-                      <span className="text-[6px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-0.5">SECURITY PASSKEY</span>
-                      <span className="font-mono text-green-400 font-bold text-base tracking-[0.25em] leading-none">{acc.password}</span>
-                    </div>
-                    <Key className="text-slate-800 relative" size={18} />
-                 </div>
+                 ))}
                </div>
-             ))}
+             )}
+          </div>
+          
+          <div className="p-4 bg-slate-950 border-t border-white/10 shrink-0 text-center">
+             <p className="text-[7px] font-black text-slate-600 uppercase tracking-[0.4em]">ARAVIND MASTER PRIVILEGE • ENCRYPTED OVERSIGHT</p>
           </div>
         </div>
       )}
