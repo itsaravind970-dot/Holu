@@ -8,7 +8,7 @@ import {
   MessageSquare, Plus, Menu, X, Loader2, Waves, Smartphone, UserCircle, LogOut, Zap, AlertCircle, Camera, Save, Eye, EyeOff, Fingerprint, ShieldCheck
 } from 'lucide-react';
 
-const CLOUD_STORAGE_KEY = 'aravind_user_registry_v15_stable';
+const CLOUD_STORAGE_KEY = 'aravind_user_registry_v16_final';
 const CLOUD_URL = `https://kvdb.io/MWpXp2A1oB6yq7X9Z4Y8R/${CLOUD_STORAGE_KEY}`;
 
 const App: React.FC = () => {
@@ -113,7 +113,9 @@ const App: React.FC = () => {
       const history = currentSession?.messages.slice(0, -1) || [];
       
       const res = await geminiService.chatWithHistory(history, text, file);
-      const generatedText = res.text || "Data uplink failed to return content.";
+      
+      // Extraction fix: Directly access .text property from the response
+      const generatedText = res.text || "No intelligence content returned.";
       
       const botMsg: ChatMessageType = { 
         id: Date.now().toString(), 
@@ -131,7 +133,7 @@ const App: React.FC = () => {
         return finalSessions;
       });
     } catch (e: any) { 
-      setRuntimeError(e.message || "Uplink Error: Ensure your system environment is active.");
+      setRuntimeError(e.message || "Intelligence Uplink Failed.");
       console.error(e.message);
     } finally { 
       setIsLoading(false); 
@@ -202,7 +204,7 @@ const App: React.FC = () => {
             {isLoading && (
               <div className="p-10 flex flex-col items-center gap-4">
                  <Loader2 className="animate-spin text-green-500" size={28} />
-                 <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.4em]">Processing Data...</span>
+                 <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.4em]">Synthesizing...</span>
               </div>
             )}
           </div>
@@ -343,10 +345,10 @@ const AuthScreen: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-10 bg-slate-50 overflow-y-auto">
-      {/* COMPACT FLOATING OTP AT THE TOP */}
+    <div className="fixed inset-0 flex items-center justify-center p-12 bg-slate-50 overflow-y-auto">
+      {/* COMPACT FLOATING OTP AT THE ABSOLUTE TOP */}
       {otpSplash && (
-        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[300] w-[220px] animate-in slide-in-from-top-12 duration-500">
+        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[300] w-[220px] animate-in slide-in-from-top-12 duration-500">
            <div className="bg-slate-950 p-4 rounded-[24px] shadow-2xl border border-white/10 text-center relative overflow-hidden ring-1 ring-slate-900">
               <p className="text-[7px] font-black text-green-500 uppercase tracking-widest mb-2">Nexus Cipher</p>
               <h4 className="text-2xl font-black text-white font-mono tracking-widest">{generatedOtp}</h4>
@@ -357,27 +359,27 @@ const AuthScreen: React.FC<{
         </div>
       )}
 
-      {/* ULTRA-COMPACT BUSINESS-FRIENDLY AUTH BOX */}
-      <div className="w-full max-w-[270px] bg-white p-7 rounded-[44px] shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-500 my-auto mx-auto ring-1 ring-slate-200/40">
-         <div className="text-center mb-8">
-            <div className="w-12 h-12 bg-slate-950 rounded-[22px] mx-auto mb-5 flex items-center justify-center text-green-400 shadow-xl shadow-green-400/5">
-               <Waves size={24} />
+      {/* ULTRA-COMPACT BUSINESS-FRIENDLY AUTH BOX (MAX WIDTH 260px) */}
+      <div className="w-full max-w-[260px] bg-white p-6 rounded-[44px] shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-500 my-auto mx-auto ring-1 ring-slate-200/40">
+         <div className="text-center mb-6">
+            <div className="w-10 h-10 bg-slate-950 rounded-[18px] mx-auto mb-4 flex items-center justify-center text-green-400 shadow-xl shadow-green-400/5">
+               <Waves size={20} />
             </div>
-            <h2 className="text-lg font-black uppercase text-slate-950 tracking-tighter leading-none mb-1.5">Aravind Bot</h2>
-            <p className="text-[7px] text-slate-400 font-black uppercase tracking-[0.3em] leading-none">
+            <h2 className="text-base font-black uppercase text-slate-950 tracking-tighter leading-none mb-1">Aravind Bot</h2>
+            <p className="text-[6px] text-slate-400 font-black uppercase tracking-[0.3em] leading-none">
               {mode === 'login' ? 'Secure Gateway' : 'New Identity'}
             </p>
          </div>
 
          {step === 'otp' ? (
-           <form onSubmit={handleAuth} className="space-y-6">
+           <form onSubmit={handleAuth} className="space-y-4">
              <div className="space-y-2 text-center">
-                <label className="text-[8px] font-black uppercase text-slate-400 tracking-widest block">Input Cipher</label>
-                <input placeholder="000000" maxLength={6} className="w-full bg-slate-50 border border-slate-100 rounded-[18px] py-3 text-center text-2xl font-black tracking-widest outline-none focus:bg-white focus:border-slate-950 font-mono shadow-inner transition-all" value={otpValue} onChange={e => setOtpValue(e.target.value.replace(/\D/g, ''))} />
+                <label className="text-[7px] font-black uppercase text-slate-400 tracking-widest block">Input Cipher</label>
+                <input placeholder="000000" maxLength={6} className="w-full bg-slate-50 border border-slate-100 rounded-[16px] py-2.5 text-center text-xl font-black tracking-widest outline-none focus:bg-white focus:border-slate-950 font-mono shadow-inner transition-all" value={otpValue} onChange={e => setOtpValue(e.target.value.replace(/\D/g, ''))} />
              </div>
              {error && <p className="text-[7px] font-black text-red-500 uppercase text-center tracking-widest">{error}</p>}
-             <button type="submit" disabled={isBusy || otpValue.length < 6} className="w-full bg-slate-950 text-white py-4 rounded-[22px] font-black uppercase text-[10px] tracking-[0.3em] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3">
-                {isBusy ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />} Verify
+             <button type="submit" disabled={isBusy || otpValue.length < 6} className="w-full bg-slate-950 text-white py-3.5 rounded-[20px] font-black uppercase text-[9px] tracking-[0.3em] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">
+                {isBusy ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />} Verify
              </button>
              <button type="button" disabled={resendTimer > 0} onClick={() => { 
                 const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -385,54 +387,54 @@ const AuthScreen: React.FC<{
                 setOtpSplash(true);
                 setResendTimer(15);
                 setTimeout(() => setOtpSplash(false), 12000);
-             }} className="w-full text-[8px] font-black text-slate-400 uppercase tracking-widest text-center hover:text-slate-900">
-               {resendTimer > 0 ? `Resend In ${resendTimer}s` : 'Request New Cipher'}
+             }} className="w-full text-[7px] font-black text-slate-400 uppercase tracking-widest text-center hover:text-slate-900">
+               {resendTimer > 0 ? `Retry ${resendTimer}s` : 'New Cipher'}
              </button>
            </form>
          ) : (
-           <form onSubmit={mode === 'login' ? handleAuth : (e) => { e.preventDefault(); initiateOtp(); }} className="space-y-3">
+           <form onSubmit={mode === 'login' ? handleAuth : (e) => { e.preventDefault(); initiateOtp(); }} className="space-y-2.5">
               {mode === 'signup' && (
                  <>
                    <div className="space-y-1">
-                      <label className="text-[7px] font-black uppercase text-slate-400 tracking-widest ml-4">Legal Name</label>
-                      <input placeholder="Enter Name" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] py-2.5 px-4 text-[10px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} />
+                      <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Full Name</label>
+                      <input placeholder="Name" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 px-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} />
                    </div>
                    <div className="space-y-1">
-                      <label className="text-[7px] font-black uppercase text-slate-400 tracking-widest ml-4">Bot Handle</label>
-                      <input placeholder="AI Persona" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] py-2.5 px-4 text-[10px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.chatbotName} onChange={e => setFormData({...formData, chatbotName: e.target.value})} />
+                      <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Bot Tag</label>
+                      <input placeholder="Persona" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 px-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.chatbotName} onChange={e => setFormData({...formData, chatbotName: e.target.value})} />
                    </div>
                  </>
               )}
               <div className="space-y-1">
-                 <label className="text-[7px] font-black uppercase text-slate-400 tracking-widest ml-4">Mobile</label>
+                 <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Mobile</label>
                  <div className="relative">
-                    <Smartphone size={12} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input placeholder="10 Digits" maxLength={10} className="w-full bg-slate-50 border border-slate-100 rounded-[16px] py-2.5 pl-10 pr-4 text-[10px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.phoneNumber} onChange={e => setFormData({...formData, phoneNumber: e.target.value.replace(/\D/g, '')})} />
+                    <Smartphone size={10} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input placeholder="10 Digits" maxLength={10} className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 pl-8 pr-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.phoneNumber} onChange={e => setFormData({...formData, phoneNumber: e.target.value.replace(/\D/g, '')})} />
                  </div>
               </div>
               <div className="space-y-1">
-                 <label className="text-[7px] font-black uppercase text-slate-400 tracking-widest ml-4">Passkey</label>
+                 <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Passkey</label>
                  <div className="relative">
-                    <Fingerprint size={12} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input type={showPass ? "text" : "password"} placeholder="••••••••" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] py-2.5 pl-10 pr-10 text-[10px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
-                    <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-950">{showPass ? <EyeOff size={12} /> : <Eye size={12} />}</button>
+                    <Fingerprint size={10} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input type={showPass ? "text" : "password"} placeholder="••••" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 pl-8 pr-8 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+                    <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-950">{showPass ? <EyeOff size={10} /> : <Eye size={10} />}</button>
                  </div>
               </div>
               {mode === 'signup' && (
                 <div className="space-y-1">
-                   <label className="text-[7px] font-black uppercase text-slate-400 tracking-widest ml-4">Verify</label>
-                   <input type="password" placeholder="••••••••" className="w-full bg-slate-50 border border-slate-100 rounded-[16px] py-2.5 px-4 text-[10px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.confirmPassword} onChange={e => setFormData({...formData, confirmPassword: e.target.value})} />
+                   <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Verify</label>
+                   <input type="password" placeholder="••••" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 px-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.confirmPassword} onChange={e => setFormData({...formData, confirmPassword: e.target.value})} />
                 </div>
               )}
-              {error && <p className="text-[7px] font-black text-red-500 uppercase tracking-widest text-center mt-1">{error}</p>}
-              <button type="submit" disabled={isBusy} className="w-full bg-slate-950 text-white py-3.5 rounded-[20px] font-black uppercase text-[9px] tracking-[0.3em] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 mt-4">
-                 {isBusy ? <Loader2 size={14} className="animate-spin" /> : mode === 'login' ? <Zap size={14} /> : <Plus size={14} />} 
-                 {mode === 'login' ? 'Login' : 'Create'} 
+              {error && <p className="text-[6px] font-black text-red-500 uppercase tracking-widest text-center mt-1">{error}</p>}
+              <button type="submit" disabled={isBusy} className="w-full bg-slate-950 text-white py-3 rounded-[18px] font-black uppercase text-[8px] tracking-[0.2em] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 mt-3">
+                 {isBusy ? <Loader2 size={12} className="animate-spin" /> : mode === 'login' ? <Zap size={12} /> : <Plus size={12} />} 
+                 {mode === 'login' ? 'Login' : 'Signup'} 
               </button>
            </form>
          )}
-         <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setStep('details'); setError(''); }} className="w-full mt-7 text-[8px] font-black uppercase text-slate-400 tracking-[0.4em] hover:text-slate-950 transition-all text-center">
-           {mode === 'login' ? 'New node? Register' : 'Existing node? Login'}
+         <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setStep('details'); setError(''); }} className="w-full mt-6 text-[7px] font-black uppercase text-slate-400 tracking-[0.4em] hover:text-slate-950 transition-all text-center">
+           {mode === 'login' ? 'Register New node' : 'Existing node? Login'}
          </button>
       </div>
       

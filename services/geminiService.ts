@@ -14,7 +14,10 @@ export const geminiService = {
     media?: { data: string; mimeType: string },
     signal?: AbortSignal
   ) {
-    // We initialize inside the function to ensure process.env.API_KEY is accessed at runtime
+    if (!process.env.API_KEY) {
+      throw new Error("API configuration missing. Check environment variables.");
+    }
+
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const contents = history.map(msg => ({
@@ -41,13 +44,20 @@ export const geminiService = {
         contents: contents as any,
         config: {
           systemInstruction: MASTER_PROMPT,
-          temperature: 0.8,
+          temperature: 1,
           topP: 0.95,
           tools: [{ googleSearch: {} }]
         }
       });
       
       if (signal?.aborted) throw new Error('AbortError');
+
+      // The SDK's response.text getter handles extraction. 
+      // We ensure we have a valid response candidate.
+      if (!response.candidates || response.candidates.length === 0) {
+        throw new Error("No response candidates received from intelligence hub.");
+      }
+
       return response;
     } catch (error: any) {
       if (error.message === 'AbortError') throw error;
@@ -57,6 +67,7 @@ export const geminiService = {
   },
 
   async textToSpeech(text: string) {
+    if (!process.env.API_KEY) return null;
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
       const cleanText = text.replace(/[`*#]/g, '').slice(0, 300);
