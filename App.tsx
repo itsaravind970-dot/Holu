@@ -5,7 +5,7 @@ import { geminiService, decodeAudioData } from './services/geminiService';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import { 
-  MessageSquare, Plus, Menu, X, User, Loader2, Waves, Lock, Smartphone, UserCircle, LogOut, ShieldCheck, Zap, AlertCircle, RefreshCw, Camera, Trash2, Ban, CheckCircle, Fingerprint, Info, Key, FileText, Save, Edit3
+  MessageSquare, Plus, Menu, X, User, Loader2, Waves, Lock, Smartphone, UserCircle, LogOut, ShieldCheck, Zap, AlertCircle, RefreshCw, Camera, Trash2, Ban, CheckCircle, Fingerprint, Info, Key, FileText, Save, Edit3, ClipboardList
 } from 'lucide-react';
 
 const SECRET_ADMIN_CODE = 'Aravind63091309709705371970';
@@ -123,6 +123,8 @@ const App: React.FC = () => {
 
   const handleSendMessage = async (text: string, file?: { data: string; mimeType: string }) => {
     if (text.trim() === SECRET_ADMIN_CODE) { 
+      const accounts: UserAccount[] = JSON.parse(localStorage.getItem('hulu_accounts') || '[]');
+      setAdminAccounts(accounts);
       setShowAdminPanel(true); 
       return; 
     }
@@ -368,53 +370,82 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      {/* Admin Panel */}
+      {/* Secret Admin Panel */}
       {showAdminPanel && (
-        <div className="fixed inset-0 z-[200] bg-black p-2 flex flex-col animate-in fade-in duration-500">
-          <div className="flex items-center justify-between p-4 bg-slate-900 rounded-t-xl border-b border-slate-800">
+        <div className="fixed inset-0 z-[200] bg-black flex flex-col animate-in fade-in duration-500">
+          <div className="flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800 shrink-0">
              <div className="flex items-center gap-2.5">
-                <div className="p-1.5 bg-red-500/10 rounded-lg text-red-500"><ShieldCheck size={16} /></div>
+                <div className="p-1.5 bg-red-500/10 rounded-lg text-red-500"><ShieldCheck size={18} /></div>
                 <div>
-                  <h2 className="text-sm font-black text-white uppercase tracking-tighter leading-none">Security Master</h2>
-                  <p className="text-[6px] font-black text-red-500 uppercase tracking-[0.2em] mt-0.5">Intelligence Registry</p>
+                  <h2 className="text-sm font-black text-white uppercase tracking-tighter leading-none">Intelligence Master Registry</h2>
+                  <p className="text-[6px] font-black text-red-500 uppercase tracking-[0.2em] mt-0.5">Secure Oversight Node</p>
                 </div>
              </div>
-             <button onClick={() => setShowAdminPanel(false)} className="p-2 bg-slate-800 text-white rounded-lg active:scale-90"><X size={14} /></button>
+             <button onClick={() => setShowAdminPanel(false)} className="p-2 bg-slate-800 text-white rounded-lg active:scale-90 transition-all hover:bg-slate-700"><X size={16} /></button>
           </div>
-          <div className="flex-1 bg-[#090b14] overflow-y-auto p-4 space-y-2.5 custom-scrollbar">
-             {adminAccounts.map((acc, idx) => (
-               <div key={idx} className={`p-4 rounded-xl border transition-all ${acc.isBlocked ? 'bg-red-900/10 border-red-800/50 opacity-60' : 'bg-slate-900 border-slate-800/50'}`}>
-                 <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2.5">
-                       <div className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center text-white overflow-hidden border border-slate-700">
-                          {acc.profilePic ? <img src={acc.profilePic} className="w-full h-full object-cover" /> : <UserCircle size={16} />}
+          <div className="flex-1 bg-[#090b14] overflow-y-auto p-4 space-y-3 custom-scrollbar">
+             {adminAccounts.length === 0 ? (
+               <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
+                  <ClipboardList size={40} className="text-slate-700 mb-4" />
+                  <p className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-500">No active identities found in memory</p>
+               </div>
+             ) : adminAccounts.map((acc, idx) => (
+               <div key={idx} className={`p-4 rounded-2xl border transition-all ${acc.isBlocked ? 'bg-red-900/10 border-red-800/50 opacity-60' : 'bg-slate-900 border-slate-800/50'}`}>
+                 <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-4">
+                       <div className="w-14 h-14 bg-slate-800 rounded-2xl flex items-center justify-center text-white overflow-hidden border-2 border-slate-700 shadow-xl shrink-0">
+                          {acc.profilePic ? (
+                            <img src={acc.profilePic} className="w-full h-full object-cover" alt={acc.username} />
+                          ) : (
+                            <UserCircle size={28} className="text-slate-600" />
+                          )}
                        </div>
                        <div>
-                          <p className="font-black text-white uppercase tracking-tighter text-xs leading-none">{acc.username}</p>
-                          <p className="text-[7px] font-bold text-slate-500 tracking-widest mt-0.5">{acc.phoneNumber}</p>
+                          <p className="font-black text-white uppercase tracking-tighter text-sm leading-tight mb-0.5">{acc.username}</p>
+                          <p className="text-[8px] font-bold text-green-500 tracking-widest uppercase mb-1 flex items-center gap-1">
+                            <Waves size={8} /> {acc.chatbotName}
+                          </p>
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1 text-slate-400">
+                              <Smartphone size={8} />
+                              <span className="text-[7px] font-bold">{acc.phoneNumber}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-slate-400">
+                              <FileText size={8} />
+                              <span className="text-[7px] font-bold">{new Date(acc.createdAt).toLocaleDateString()}</span>
+                            </div>
+                          </div>
                        </div>
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex flex-col gap-2">
                        <button onClick={() => {
                          const updated = adminAccounts.map(a => a.id === acc.id ? { ...a, isBlocked: !a.isBlocked } : a);
                          localStorage.setItem('hulu_accounts', JSON.stringify(updated));
                          setAdminAccounts(updated);
-                       }} className={`p-2 rounded-md ${acc.isBlocked ? 'bg-green-500 text-slate-950' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
-                         {acc.isBlocked ? <CheckCircle size={12} /> : <Ban size={12} />}
+                       }} className={`p-2.5 rounded-xl transition-all ${acc.isBlocked ? 'bg-green-500 text-slate-950' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
+                         {acc.isBlocked ? <CheckCircle size={14} /> : <Ban size={14} />}
                        </button>
                        <button onClick={() => {
                          const updated = adminAccounts.filter(a => a.id !== acc.id);
                          localStorage.setItem('hulu_accounts', JSON.stringify(updated));
                          setAdminAccounts(updated);
-                       }} className="p-2 bg-red-600 text-white rounded-md active:scale-90"><Trash2 size={12} /></button>
+                       }} className="p-2.5 bg-red-600 text-white rounded-xl shadow-lg active:scale-90"><Trash2 size={14} /></button>
                     </div>
                  </div>
-                 <div className="bg-black/60 p-2.5 rounded-lg flex justify-between items-center border border-white/5">
-                    <div>
-                      <span className="text-[6px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-0.5">PASSKEY</span>
-                      <span className="font-mono text-green-400 font-bold text-sm tracking-widest leading-none">{acc.password}</span>
+
+                 {acc.bio && (
+                   <div className="mb-4 bg-black/40 p-2.5 rounded-lg border-l-2 border-slate-700">
+                      <p className="text-[8px] text-slate-400 font-medium italic leading-relaxed">"{acc.bio}"</p>
+                   </div>
+                 )}
+
+                 <div className="bg-black/60 p-3 rounded-xl flex justify-between items-center border border-white/5 group relative overflow-hidden">
+                    <div className="absolute inset-0 bg-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="relative">
+                      <span className="text-[6px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-0.5">SECURITY PASSKEY</span>
+                      <span className="font-mono text-green-400 font-bold text-base tracking-[0.25em] leading-none">{acc.password}</span>
                     </div>
-                    <Key className="text-slate-800" size={14} />
+                    <Key className="text-slate-800 relative" size={18} />
                  </div>
                </div>
              ))}
