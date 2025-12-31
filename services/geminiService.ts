@@ -2,11 +2,12 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { ChatMessage } from "../types";
 
-const MASTER_PROMPT = `You are "Aravind's bot", an elite AI assistant powered by Gemini 3. 
+const MASTER_PROMPT = `You are "Aravind's bot", an elite Pro-tier AI assistant. 
+You are powered by Gemini 3 Pro for maximum accuracy and reasoning.
 Your goal is to provide fast, flawless, and professional responses. 
-Use advanced reasoning to ensure accuracy. 
+Use advanced reasoning to ensure perfect accuracy. 
 Format output with clean, readable Markdown. 
-Maintain a helpful and sophisticated persona.`;
+Maintain a helpful and highly sophisticated persona.`;
 
 export const geminiService = {
   async chatWithHistory(
@@ -15,14 +16,16 @@ export const geminiService = {
     media?: { data: string; mimeType: string },
     signal?: AbortSignal
   ) {
-    // Ensuring the API key is present from the secure environment
-    if (!process.env.API_KEY) {
-      throw new Error("Secure Uplink Configuration Missing.");
+    // The key is provided by the secure environment variable
+    const apiKey = process.env.API_KEY;
+    
+    if (!apiKey) {
+      throw new Error("UPLINK_KEY_MISSING");
     }
 
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey });
     
-    // Map history to the format required by the SDK with strict part validation
+    // Map history to the format required by the SDK
     const contents = history.map(msg => ({
       role: msg.role === 'user' ? 'user' : 'model',
       parts: msg.parts.map(p => {
@@ -43,21 +46,20 @@ export const geminiService = {
     contents.push({ role: 'user', parts: currentParts });
 
     try {
-      // Using gemini-3-flash-preview for the "perfect" balance of speed and intelligence
+      // Using gemini-3-pro-preview for "perfect" responses as requested
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3-pro-preview',
         contents: contents as any,
         config: {
           systemInstruction: MASTER_PROMPT,
-          temperature: 0.75,
-          topP: 0.95,
+          temperature: 0.7,
+          topP: 0.9,
           topK: 40,
         }
       });
       
       if (signal?.aborted) throw new Error('AbortError');
 
-      // The .text property is the standard way to extract content from GenerateContentResponse
       if (!response.text) {
         throw new Error("The intelligence hub processed the request but returned no text.");
       }
@@ -65,7 +67,7 @@ export const geminiService = {
       return response;
     } catch (error: any) {
       if (error.message === 'AbortError') throw error;
-      console.error("Intelligence Uplink Error:", error);
+      console.error("Intelligence Pro Error:", error);
       throw error;
     }
   },

@@ -5,11 +5,13 @@ import { geminiService } from './services/geminiService';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import { 
-  MessageSquare, Plus, Menu, X, Loader2, Waves, Smartphone, UserCircle, LogOut, Zap, AlertCircle, Camera, Save, Eye, EyeOff, Fingerprint, ShieldCheck
+  MessageSquare, Plus, Menu, X, Loader2, Waves, Smartphone, UserCircle, LogOut, Zap, AlertCircle, Camera, Save, Eye, EyeOff, Fingerprint, ShieldCheck, Key
 } from 'lucide-react';
 
-const CLOUD_STORAGE_KEY = 'aravind_user_registry_v19_master';
+const CLOUD_STORAGE_KEY = 'aravind_pro_registry_v20';
 const CLOUD_URL = `https://kvdb.io/MWpXp2A1oB6yq7X9Z4Y8R/${CLOUD_STORAGE_KEY}`;
+
+// Platform-Specific Key Select Types are assumed to be pre-configured and accessible via window.aistudio per guidelines.
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserAccount & { lastSearch?: string } | null>(null);
@@ -21,6 +23,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [cloudStatus, setCloudStatus] = useState<'online' | 'offline' | 'syncing'>('online');
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const [keySelectionNeeded, setKeySelectionNeeded] = useState(false);
   
   const [tempProfileData, setTempProfileData] = useState({ username: '', chatbotName: '', bio: '' });
 
@@ -33,6 +36,28 @@ const App: React.FC = () => {
     }
   }, [sessions, isLoading]);
 
+  const checkUplinkStatus = async () => {
+    try {
+      // Accessing aistudio as provided by the platform context
+      const aiStudio = (window as any).aistudio;
+      if (aiStudio && typeof aiStudio.hasSelectedApiKey === 'function') {
+        const hasKey = await aiStudio.hasSelectedApiKey();
+        setKeySelectionNeeded(!hasKey && !process.env.API_KEY);
+      }
+    } catch (e) {
+      console.warn("Uplink detection unavailable, proceeding.");
+    }
+  };
+
+  const handleKeyActivation = async () => {
+    const aiStudio = (window as any).aistudio;
+    if (aiStudio && typeof aiStudio.openSelectKey === 'function') {
+      await aiStudio.openSelectKey();
+      setKeySelectionNeeded(false);
+      setRuntimeError(null);
+    }
+  };
+
   const syncUserToGlobalHub = async (userToSync: UserAccount) => {
     setCloudStatus('syncing');
     try {
@@ -42,22 +67,18 @@ const App: React.FC = () => {
         const data = await res.json();
         if (Array.isArray(data)) registry = data;
       }
-      
       const index = registry.findIndex(a => a.phoneNumber === userToSync.phoneNumber);
       const updatedEntry = { ...userToSync, lastLoginAt: Date.now() };
-      
       if (index > -1) {
         registry[index] = { ...registry[index], ...updatedEntry };
       } else {
         registry.push(updatedEntry);
       }
-
       await fetch(CLOUD_URL, {
         method: 'POST',
         body: JSON.stringify(registry),
         headers: { 'Content-Type': 'application/json' }
       });
-      
       setCloudStatus('online');
       return registry;
     } catch (e) {
@@ -76,6 +97,7 @@ const App: React.FC = () => {
         const saved = JSON.parse(localStorage.getItem(`hulu_sessions_${user.id}`) || '[]');
         setSessions(saved);
         await syncUserToGlobalHub(user);
+        await checkUplinkStatus();
       }
     };
     startup();
@@ -96,12 +118,9 @@ const App: React.FC = () => {
     };
 
     let targetSessionId = currentSessionId || timestamp.toString();
-    
-    // Snapshot of history for the API call to ensure we have the full context
     const existingSession = sessions.find(s => s.id === targetSessionId);
     const apiHistory = existingSession ? existingSession.messages : [];
 
-    // 1. Atomically update the UI with the user message
     setSessions(prev => {
       if (!currentSessionId) {
         setCurrentSessionId(targetSessionId);
@@ -112,17 +131,12 @@ const App: React.FC = () => {
           updatedAt: timestamp
         }, ...prev];
       }
-      return prev.map(s => 
-        s.id === targetSessionId 
-          ? { ...s, messages: [...s.messages, userMsg], updatedAt: timestamp } 
-          : s
-      );
+      return prev.map(s => s.id === targetSessionId ? { ...s, messages: [...s.messages, userMsg], updatedAt: timestamp } : s);
     });
 
     try {
-      // 2. Uplink to Gemini 3 for perfect synthesis
       const res = await geminiService.chatWithHistory(apiHistory, text, file);
-      const botText = res.text || "Intelligence analysis failed to produce a valid response.";
+      const botText = res.text || "Intelligence analysis failed.";
       
       const botMsg: ChatMessageType = { 
         id: (Date.now() + 1).toString(), 
@@ -132,7 +146,6 @@ const App: React.FC = () => {
         groundingSources: res.candidates?.[0]?.groundingMetadata?.groundingChunks 
       };
       
-      // 3. Update state with Bot message and persist
       setSessions(prev => {
         const final = prev.map(s => s.id === targetSessionId ? { ...s, messages: [...s.messages, botMsg], updatedAt: Date.now() } : s);
         if (currentUser) {
@@ -141,8 +154,12 @@ const App: React.FC = () => {
         return final;
       });
     } catch (e: any) { 
-      setRuntimeError(e.message || "Intelligence Uplink Offline.");
-      console.error("Critical API Error:", e);
+      if (e.message === 'UPLINK_KEY_MISSING') {
+        setKeySelectionNeeded(true);
+        setRuntimeError("Secure Uplink Key Required. Please initialize below.");
+      } else {
+        setRuntimeError(e.message || "Uplink Signal Lost.");
+      }
     } finally { 
       setIsLoading(false); 
     }
@@ -179,7 +196,7 @@ const App: React.FC = () => {
         <header className="h-16 flex items-center justify-between px-6 border-b border-slate-100 bg-white/95 backdrop-blur-2xl z-20 shrink-0">
           <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2.5 bg-slate-50 rounded-2xl active:scale-90 transition-all"><Menu size={20} /></button>
           <div className="flex flex-col items-center">
-            <h2 className="text-[10px] font-black uppercase text-slate-900 tracking-tighter leading-none">Intelligence Hub</h2>
+            <h2 className="text-[10px] font-black uppercase text-slate-900 tracking-tighter leading-none">Intelligence Pro</h2>
             <div className="flex items-center gap-2 mt-1.5">
               <div className={`w-1.5 h-1.5 rounded-full ${cloudStatus === 'online' ? 'bg-green-500' : 'bg-red-500'} animate-pulse`}></div>
               <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{cloudStatus}</span>
@@ -196,23 +213,30 @@ const App: React.FC = () => {
                <ChatMessage key={m.id} message={m} />
             )) : (
               <div className="h-full flex flex-col items-center justify-center py-40 text-center opacity-30 select-none">
-                <div className="w-24 h-24 bg-white border border-slate-100 rounded-[44px] flex items-center justify-center mb-8 shadow-sm"><Waves size={48} className="text-slate-100 animate-pulse" /></div>
-                <h3 className="text-lg font-black uppercase tracking-[0.6em] text-slate-400 leading-tight">Gemini 3<br/>Flash Activated</h3>
-                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-4">Safe & Secure Intelligence</p>
+                <div className="w-24 h-24 bg-white border border-slate-100 rounded-[44px] flex items-center justify-center mb-8 shadow-sm"><Zap size={48} className="text-slate-100 animate-pulse" /></div>
+                <h3 className="text-lg font-black uppercase tracking-[0.6em] text-slate-400 leading-tight">Gemini 3 Pro<br/>Deep Intelligence</h3>
+                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-4">Secure & Flawless Response</p>
               </div>
             )}
             
-            {runtimeError && (
-              <div className="p-4 mb-6 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-                <AlertCircle size={16} className="text-red-500 shrink-0" />
-                <p className="text-[9px] font-black text-red-600 uppercase tracking-widest">{runtimeError}</p>
+            {(runtimeError || keySelectionNeeded) && (
+              <div className="p-6 mb-6 bg-red-50 border border-red-100 rounded-[32px] flex flex-col items-center gap-4 animate-in fade-in slide-in-from-top-4">
+                <div className="flex items-center gap-3">
+                  <AlertCircle size={20} className="text-red-500 shrink-0" />
+                  <p className="text-[10px] font-black text-red-600 uppercase tracking-widest">{runtimeError || "PRO ACCESS REQUIRED"}</p>
+                </div>
+                {keySelectionNeeded && (
+                  <button onClick={handleKeyActivation} className="bg-slate-950 text-white py-3 px-8 rounded-2xl font-black uppercase text-[9px] tracking-[0.3em] shadow-xl active:scale-95 transition-all flex items-center gap-3">
+                    <Key size={14} /> Initialize Secure Uplink
+                  </button>
+                )}
               </div>
             )}
 
             {isLoading && (
               <div className="p-10 flex flex-col items-center gap-4">
                  <Loader2 className="animate-spin text-green-500" size={28} />
-                 <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.4em]">Synthesizing...</span>
+                 <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.4em]">Synthesizing Perfect Response...</span>
               </div>
             )}
           </div>
@@ -301,14 +325,12 @@ const AuthScreen: React.FC<{
     if (!formData.username || !formData.phoneNumber || !formData.password || !formData.confirmPassword || !formData.chatbotName) return setError('Incomplete details.');
     if (formData.phoneNumber.length !== 10) return setError('Invalid ID length.');
     if (formData.password !== formData.confirmPassword) return setError('Security keys mismatch.');
-    
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedOtp(code);
     setStep('otp');
     setOtpSplash(true);
     setResendTimer(15);
     setError('');
-    
     setTimeout(() => setOtpSplash(false), 12000);
   };
 
@@ -316,17 +338,14 @@ const AuthScreen: React.FC<{
     e.preventDefault();
     setError('');
     setIsBusy(true);
-    
     try {
       const res = await fetch(CLOUD_URL);
       const registry: UserAccount[] = res.ok ? await res.json() : [];
-      
       if (mode === 'login') {
         const match = registry.find(a => a.phoneNumber === formData.phoneNumber && a.password === formData.password);
         if (match) {
-          if (match.isBlocked) {
-            setError('Account Isolated.');
-          } else {
+          if (match.isBlocked) setError('Account Isolated.');
+          else {
             const updatedUser = { ...match, lastLoginAt: Date.now() };
             await onGlobalSync(updatedUser);
             localStorage.setItem('hulu_current_user', JSON.stringify(updatedUser));
@@ -335,9 +354,8 @@ const AuthScreen: React.FC<{
         } else setError('Invalid Node Details.');
       } else {
         if (otpValue === generatedOtp) {
-          if (registry.some(a => a.phoneNumber === formData.phoneNumber)) {
-            setError('ID already registered.');
-          } else {
+          if (registry.some(a => a.phoneNumber === formData.phoneNumber)) setError('ID already registered.');
+          else {
             const newUser: UserAccount = { id: Date.now().toString(), ...formData, createdAt: Date.now(), lastLoginAt: Date.now(), searchCount: 0, isBlocked: false, bio: '' };
             await onGlobalSync(newUser);
             localStorage.setItem('hulu_current_user', JSON.stringify(newUser));
@@ -354,31 +372,21 @@ const AuthScreen: React.FC<{
 
   return (
     <div className="fixed inset-0 flex items-center justify-center p-10 bg-slate-50 overflow-y-auto">
-      {/* FLOATING TOP-LEVEL OTP */}
       {otpSplash && (
         <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[300] w-[220px] animate-in slide-in-from-top-12 duration-500">
            <div className="bg-slate-950 p-4 rounded-[24px] shadow-2xl border border-white/10 text-center relative overflow-hidden ring-1 ring-slate-900">
               <p className="text-[7px] font-black text-green-500 uppercase tracking-widest mb-2">Security Cipher</p>
               <h4 className="text-2xl font-black text-white font-mono tracking-widest">{generatedOtp}</h4>
-              <div className="mt-3 h-1 bg-white/5 rounded-full overflow-hidden">
-                 <div className="h-full bg-green-500 animate-[shrink_12s_linear_forwards]" style={{width: '100%'}}></div>
-              </div>
+              <div className="mt-3 h-1 bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-green-500 animate-[shrink_12s_linear_forwards]" style={{width: '100%'}}></div></div>
            </div>
         </div>
       )}
-
-      {/* ULTRA-COMPACT PREMIUM AUTH BOX */}
       <div className="w-full max-w-[260px] bg-white p-6 rounded-[44px] shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-500 my-auto mx-auto ring-1 ring-slate-200/40">
          <div className="text-center mb-6">
-            <div className="w-10 h-10 bg-slate-950 rounded-[18px] mx-auto mb-4 flex items-center justify-center text-green-400 shadow-xl shadow-green-400/5">
-               <Waves size={20} />
-            </div>
+            <div className="w-10 h-10 bg-slate-950 rounded-[18px] mx-auto mb-4 flex items-center justify-center text-green-400 shadow-xl shadow-green-400/5"><Waves size={20} /></div>
             <h2 className="text-base font-black uppercase text-slate-950 tracking-tighter leading-none mb-1">Aravind Bot</h2>
-            <p className="text-[6px] text-slate-400 font-black uppercase tracking-[0.3em] leading-none">
-              {mode === 'login' ? 'Authorized Gateway' : 'Create Identity'}
-            </p>
+            <p className="text-[6px] text-slate-400 font-black uppercase tracking-[0.3em] leading-none">{mode === 'login' ? 'Authorized Gateway' : 'Create Identity'}</p>
          </div>
-
          {step === 'otp' ? (
            <form onSubmit={handleAuth} className="space-y-4">
              <div className="space-y-2 text-center">
@@ -386,66 +394,35 @@ const AuthScreen: React.FC<{
                 <input placeholder="000000" maxLength={6} className="w-full bg-slate-50 border border-slate-100 rounded-[16px] py-2.5 text-center text-xl font-black tracking-widest outline-none focus:bg-white focus:border-slate-950 font-mono shadow-inner transition-all" value={otpValue} onChange={e => setOtpValue(e.target.value.replace(/\D/g, ''))} />
              </div>
              {error && <p className="text-[7px] font-black text-red-500 uppercase text-center tracking-widest">{error}</p>}
-             <button type="submit" disabled={isBusy || otpValue.length < 6} className="w-full bg-slate-950 text-white py-3.5 rounded-[20px] font-black uppercase text-[9px] tracking-[0.3em] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">
-                {isBusy ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />} Verify Access
-             </button>
+             <button type="submit" disabled={isBusy || otpValue.length < 6} className="w-full bg-slate-950 text-white py-3.5 rounded-[20px] font-black uppercase text-[9px] tracking-[0.3em] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">{isBusy ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />} Verify Access</button>
              <button type="button" disabled={resendTimer > 0} onClick={() => { 
                 const code = Math.floor(100000 + Math.random() * 900000).toString();
-                setGeneratedOtp(code);
-                setOtpSplash(true);
-                setResendTimer(15);
-                setTimeout(() => setOtpSplash(false), 12000);
-             }} className="w-full text-[7px] font-black text-slate-400 uppercase tracking-widest text-center hover:text-slate-900 transition-colors">
-               {resendTimer > 0 ? `Resend ${resendTimer}s` : 'Request Cipher'}
-             </button>
+                setGeneratedOtp(code); setOtpSplash(true); setResendTimer(15); setTimeout(() => setOtpSplash(false), 12000);
+             }} className="w-full text-[7px] font-black text-slate-400 uppercase tracking-widest text-center hover:text-slate-900 transition-colors">{resendTimer > 0 ? `Resend ${resendTimer}s` : 'Request Cipher'}</button>
            </form>
          ) : (
            <form onSubmit={mode === 'login' ? handleAuth : (e) => { e.preventDefault(); initiateOtp(); }} className="space-y-2.5">
               {mode === 'signup' && (
                  <>
-                   <div className="space-y-1">
-                      <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Full Name</label>
-                      <input placeholder="Identity" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 px-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} />
-                   </div>
-                   <div className="space-y-1">
-                      <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Bot Persona</label>
-                      <input placeholder="Designation" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 px-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.chatbotName} onChange={e => setFormData({...formData, chatbotName: e.target.value})} />
-                   </div>
+                   <div className="space-y-1"><label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Full Name</label><input placeholder="Identity" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 px-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} /></div>
+                   <div className="space-y-1"><label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Bot Persona</label><input placeholder="Designation" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 px-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.chatbotName} onChange={e => setFormData({...formData, chatbotName: e.target.value})} /></div>
                  </>
               )}
               <div className="space-y-1">
                  <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Mobile ID</label>
-                 <div className="relative">
-                    <Smartphone size={10} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input placeholder="10 Digits" maxLength={10} className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 pl-8 pr-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.phoneNumber} onChange={e => setFormData({...formData, phoneNumber: e.target.value.replace(/\D/g, '')})} />
-                 </div>
+                 <div className="relative"><Smartphone size={10} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input placeholder="10 Digits" maxLength={10} className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 pl-8 pr-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.phoneNumber} onChange={e => setFormData({...formData, phoneNumber: e.target.value.replace(/\D/g, '')})} /></div>
               </div>
               <div className="space-y-1">
                  <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Security Key</label>
-                 <div className="relative">
-                    <Fingerprint size={10} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input type={showPass ? "text" : "password"} placeholder="••••" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 pl-8 pr-8 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
-                    <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-950">{showPass ? <EyeOff size={10} /> : <Eye size={10} />}</button>
-                 </div>
+                 <div className="relative"><Fingerprint size={10} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input type={showPass ? "text" : "password"} placeholder="••••" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 pl-8 pr-8 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /><button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-950">{showPass ? <EyeOff size={10} /> : <Eye size={10} />}</button></div>
               </div>
-              {mode === 'signup' && (
-                <div className="space-y-1">
-                   <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Verify Key</label>
-                   <input type="password" placeholder="••••" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 px-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.confirmPassword} onChange={e => setFormData({...formData, confirmPassword: e.target.value})} />
-                </div>
-              )}
+              {mode === 'signup' && (<div className="space-y-1"><label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Verify Key</label><input type="password" placeholder="••••" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 px-3 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.confirmPassword} onChange={e => setFormData({...formData, confirmPassword: e.target.value})} /></div>)}
               {error && <p className="text-[6px] font-black text-red-500 uppercase tracking-widest text-center mt-1">{error}</p>}
-              <button type="submit" disabled={isBusy} className="w-full bg-slate-950 text-white py-3 rounded-[18px] font-black uppercase text-[8px] tracking-[0.2em] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 mt-3">
-                 {isBusy ? <Loader2 size={12} className="animate-spin" /> : mode === 'login' ? <Zap size={12} /> : <Plus size={12} />} 
-                 {mode === 'login' ? 'Login Node' : 'Register Identity'} 
-              </button>
+              <button type="submit" disabled={isBusy} className="w-full bg-slate-950 text-white py-3 rounded-[18px] font-black uppercase text-[8px] tracking-[0.2em] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 mt-3">{isBusy ? <Loader2 size={12} className="animate-spin" /> : mode === 'login' ? <Zap size={12} /> : <Plus size={12} />} {mode === 'login' ? 'Login Node' : 'Register Identity'}</button>
            </form>
          )}
-         <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setStep('details'); setError(''); }} className="w-full mt-6 text-[7px] font-black uppercase text-slate-400 tracking-[0.4em] hover:text-slate-950 transition-all text-center">
-           {mode === 'login' ? 'New node? Register' : 'Existing node? Login'}
-         </button>
+         <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setStep('details'); setError(''); }} className="w-full mt-6 text-[7px] font-black uppercase text-slate-400 tracking-[0.4em] hover:text-slate-950 transition-all text-center">{mode === 'login' ? 'New node? Register' : 'Existing node? Login'}</button>
       </div>
-      
       <style>{` @keyframes shrink { from { width: 100%; } to { width: 0%; } } `}</style>
     </div>
   );
