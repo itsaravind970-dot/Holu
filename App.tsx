@@ -5,18 +5,17 @@ import { geminiService } from './services/geminiService';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import { 
-  MessageSquare, Plus, Menu, X, Loader2, Waves, Smartphone, UserCircle, LogOut, Zap, AlertCircle, Camera, Save, Eye, EyeOff, Fingerprint, ShieldCheck, Key
+  MessageSquare, Plus, Menu, X, Loader2, Waves, Smartphone, UserCircle, LogOut, Zap, AlertCircle, Camera, Save, Eye, EyeOff, Fingerprint, ShieldCheck, Key, Settings, CheckCircle2
 } from 'lucide-react';
 
 const CLOUD_STORAGE_KEY = 'aravind_pro_registry_v20';
 const CLOUD_URL = `https://kvdb.io/MWpXp2A1oB6yq7X9Z4Y8R/${CLOUD_STORAGE_KEY}`;
 
-// Platform-Specific Key Select Types are assumed to be pre-configured and accessible via window.aistudio per guidelines.
-
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserAccount & { lastSearch?: string } | null>(null);
   const [isAuthView, setIsAuthView] = useState(true);
   const [showProfile, setShowProfile] = useState(false);
+  const [showKeySetup, setShowKeySetup] = useState(false);
   const [sessions, setSessions] = useState<ChatSessionHistory[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -26,6 +25,7 @@ const App: React.FC = () => {
   const [keySelectionNeeded, setKeySelectionNeeded] = useState(false);
   
   const [tempProfileData, setTempProfileData] = useState({ username: '', chatbotName: '', bio: '' });
+  const [manualApiKey, setManualApiKey] = useState(localStorage.getItem('aravind_uplink_cipher') || '');
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const profilePicInputRef = useRef<HTMLInputElement>(null);
@@ -37,16 +37,32 @@ const App: React.FC = () => {
   }, [sessions, isLoading]);
 
   const checkUplinkStatus = async () => {
+    // Check local storage first
+    const savedKey = localStorage.getItem('aravind_uplink_cipher');
+    if (savedKey) {
+      setKeySelectionNeeded(false);
+      return;
+    }
+
     try {
-      // Accessing aistudio as provided by the platform context
       const aiStudio = (window as any).aistudio;
       if (aiStudio && typeof aiStudio.hasSelectedApiKey === 'function') {
         const hasKey = await aiStudio.hasSelectedApiKey();
         setKeySelectionNeeded(!hasKey && !process.env.API_KEY);
+      } else {
+        setKeySelectionNeeded(!process.env.API_KEY);
       }
     } catch (e) {
-      console.warn("Uplink detection unavailable, proceeding.");
+      setKeySelectionNeeded(!process.env.API_KEY);
     }
+  };
+
+  const saveManualKey = (key: string) => {
+    localStorage.setItem('aravind_uplink_cipher', key);
+    setManualApiKey(key);
+    setKeySelectionNeeded(false);
+    setRuntimeError(null);
+    setShowKeySetup(false);
   };
 
   const handleKeyActivation = async () => {
@@ -55,6 +71,8 @@ const App: React.FC = () => {
       await aiStudio.openSelectKey();
       setKeySelectionNeeded(false);
       setRuntimeError(null);
+    } else {
+      setShowKeySetup(true);
     }
   };
 
@@ -135,7 +153,7 @@ const App: React.FC = () => {
     });
 
     try {
-      const res = await geminiService.chatWithHistory(apiHistory, text, file);
+      const res = await geminiService.chatWithHistory(apiHistory, text, file, undefined, manualApiKey);
       const botText = res.text || "Intelligence analysis failed.";
       
       const botMsg: ChatMessageType = { 
@@ -157,6 +175,7 @@ const App: React.FC = () => {
       if (e.message === 'UPLINK_KEY_MISSING') {
         setKeySelectionNeeded(true);
         setRuntimeError("Secure Uplink Key Required. Please initialize below.");
+        setShowKeySetup(true);
       } else {
         setRuntimeError(e.message || "Uplink Signal Lost.");
       }
@@ -188,13 +207,17 @@ const App: React.FC = () => {
               </button>
             ))}
           </div>
-          <button onClick={() => { localStorage.removeItem('hulu_current_user'); setCurrentUser(null); setIsAuthView(true); }} className="mt-8 flex items-center justify-center gap-3 p-4 text-red-400 hover:text-red-300 transition-colors text-[10px] font-black uppercase tracking-widest bg-red-500/5 rounded-2xl"><LogOut size={16} /> Logout</button>
+          <button onClick={() => setShowKeySetup(true)} className="flex items-center gap-3 p-4 text-slate-400 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest bg-white/5 rounded-2xl mb-2"><Key size={14} /> Uplink Settings</button>
+          <button onClick={() => { localStorage.removeItem('hulu_current_user'); setCurrentUser(null); setIsAuthView(true); }} className="flex items-center justify-center gap-3 p-4 text-red-400 hover:text-red-300 transition-colors text-[10px] font-black uppercase tracking-widest bg-red-500/5 rounded-2xl"><LogOut size={16} /> Logout</button>
         </div>
       </aside>
 
       <main className="flex-1 flex flex-col h-full bg-white relative overflow-hidden">
         <header className="h-16 flex items-center justify-between px-6 border-b border-slate-100 bg-white/95 backdrop-blur-2xl z-20 shrink-0">
-          <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2.5 bg-slate-50 rounded-2xl active:scale-90 transition-all"><Menu size={20} /></button>
+          <div className="flex items-center gap-4">
+            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2.5 bg-slate-50 rounded-2xl active:scale-90 transition-all"><Menu size={20} /></button>
+            {manualApiKey && <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-green-50 text-green-600 rounded-full border border-green-100"><ShieldCheck size={10} /><span className="text-[8px] font-black uppercase tracking-widest">Personal Uplink Active</span></div>}
+          </div>
           <div className="flex flex-col items-center">
             <h2 className="text-[10px] font-black uppercase text-slate-900 tracking-tighter leading-none">Intelligence Pro</h2>
             <div className="flex items-center gap-2 mt-1.5">
@@ -219,17 +242,15 @@ const App: React.FC = () => {
               </div>
             )}
             
-            {(runtimeError || keySelectionNeeded) && (
+            {(runtimeError || keySelectionNeeded) && !showKeySetup && (
               <div className="p-6 mb-6 bg-red-50 border border-red-100 rounded-[32px] flex flex-col items-center gap-4 animate-in fade-in slide-in-from-top-4">
                 <div className="flex items-center gap-3">
                   <AlertCircle size={20} className="text-red-500 shrink-0" />
                   <p className="text-[10px] font-black text-red-600 uppercase tracking-widest">{runtimeError || "PRO ACCESS REQUIRED"}</p>
                 </div>
-                {keySelectionNeeded && (
-                  <button onClick={handleKeyActivation} className="bg-slate-950 text-white py-3 px-8 rounded-2xl font-black uppercase text-[9px] tracking-[0.3em] shadow-xl active:scale-95 transition-all flex items-center gap-3">
-                    <Key size={14} /> Initialize Secure Uplink
-                  </button>
-                )}
+                <button onClick={handleKeyActivation} className="bg-slate-950 text-white py-3 px-8 rounded-2xl font-black uppercase text-[9px] tracking-[0.3em] shadow-xl active:scale-95 transition-all flex items-center gap-3">
+                  <Key size={14} /> Configure Secure Uplink
+                </button>
               </div>
             )}
 
@@ -246,6 +267,44 @@ const App: React.FC = () => {
           <ChatInput onSend={handleSendMessage} onStop={() => setIsLoading(false)} disabled={isLoading} />
         </div>
       </main>
+
+      {showKeySetup && (
+        <div className="fixed inset-0 z-[200] bg-slate-950/90 backdrop-blur-2xl flex items-center justify-center p-8">
+           <div className="w-full max-w-[340px] bg-white rounded-[48px] p-8 shadow-2xl animate-in zoom-in-95 duration-300">
+              <div className="flex flex-col items-center text-center gap-4 mb-8">
+                <div className="w-16 h-16 bg-slate-950 rounded-[28px] flex items-center justify-center text-green-400 shadow-2xl"><Key size={32} /></div>
+                <h3 className="text-sm font-black uppercase text-slate-950 tracking-tighter">Cipher Configuration</h3>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed px-4">Inject your Gemini API key to establish a permanent, unlimited uplink to the Pro Intelligence Hub.</p>
+              </div>
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest ml-4">System API Key</label>
+                  <div className="relative">
+                    <Fingerprint className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                    <input 
+                      type="password" 
+                      placeholder="Paste Key Here..." 
+                      className="w-full bg-slate-50 border border-slate-100 rounded-[24px] py-4 pl-14 pr-6 text-[12px] font-bold outline-none focus:border-slate-950 focus:bg-white transition-all shadow-inner"
+                      value={manualApiKey}
+                      onChange={e => setManualApiKey(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <button 
+                  onClick={() => saveManualKey(manualApiKey)} 
+                  disabled={!manualApiKey}
+                  className="w-full bg-slate-950 text-white py-4 rounded-[24px] font-black uppercase text-[10px] tracking-[0.3em] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-20"
+                >
+                  <CheckCircle2 size={16} /> Synchronize Uplink
+                </button>
+                <button onClick={() => setShowKeySetup(false)} className="w-full text-[9px] font-black text-slate-400 uppercase tracking-widest py-2 hover:text-slate-950 transition-colors">Configure Later</button>
+              </div>
+              <div className="mt-8 pt-6 border-t border-slate-50 text-center">
+                 <a href="https://ai.google.dev/" target="_blank" rel="noreferrer" className="text-[8px] font-black text-blue-500 uppercase tracking-[0.2em] underline decoration-blue-200">Get your free key at Google AI Studio</a>
+              </div>
+           </div>
+        </div>
+      )}
 
       {showProfile && (
         <div className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-2xl flex items-center justify-center p-8" onClick={() => setShowProfile(false)}>

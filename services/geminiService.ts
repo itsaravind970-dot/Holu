@@ -14,10 +14,11 @@ export const geminiService = {
     history: ChatMessage[],
     newMessage: string,
     media?: { data: string; mimeType: string },
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    overrideKey?: string
   ) {
-    // The key is provided by the secure environment variable
-    const apiKey = process.env.API_KEY;
+    // Priority: 1. Manual Override, 2. Environment, 3. Local Storage fallback
+    const apiKey = overrideKey || process.env.API_KEY || localStorage.getItem('aravind_uplink_cipher');
     
     if (!apiKey) {
       throw new Error("UPLINK_KEY_MISSING");
@@ -25,7 +26,6 @@ export const geminiService = {
 
     const ai = new GoogleGenAI({ apiKey });
     
-    // Map history to the format required by the SDK
     const contents = history.map(msg => ({
       role: msg.role === 'user' ? 'user' : 'model',
       parts: msg.parts.map(p => {
@@ -35,7 +35,6 @@ export const geminiService = {
       })
     })).filter(c => c.parts.length > 0);
 
-    // Prepare current turn
     const currentParts: any[] = [{ text: newMessage }];
     if (media) {
       currentParts.push({
@@ -46,7 +45,6 @@ export const geminiService = {
     contents.push({ role: 'user', parts: currentParts });
 
     try {
-      // Using gemini-3-pro-preview for "perfect" responses as requested
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
         contents: contents as any,
@@ -73,8 +71,10 @@ export const geminiService = {
   },
 
   async textToSpeech(text: string) {
-    if (!process.env.API_KEY) return null;
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = process.env.API_KEY || localStorage.getItem('aravind_uplink_cipher');
+    if (!apiKey) return null;
+    
+    const ai = new GoogleGenAI({ apiKey });
     try {
       const cleanText = text.replace(/[`*#]/g, '').slice(0, 300);
       const response = await ai.models.generateContent({

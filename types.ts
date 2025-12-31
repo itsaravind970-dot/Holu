@@ -43,4 +43,5 @@ export interface UserAccount {
   searchCount?: number;
   isBlocked?: boolean;
   profilePic?: string;
+  customApiKey?: string;
 }
