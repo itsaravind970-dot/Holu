@@ -8,7 +8,7 @@ import {
   MessageSquare, Plus, Menu, X, Loader2, Waves, Smartphone, UserCircle, LogOut, Zap, AlertCircle, Camera, Save, Eye, EyeOff, Fingerprint, ShieldCheck
 } from 'lucide-react';
 
-const CLOUD_STORAGE_KEY = 'aravind_user_registry_v18_final';
+const CLOUD_STORAGE_KEY = 'aravind_user_registry_v19_master';
 const CLOUD_URL = `https://kvdb.io/MWpXp2A1oB6yq7X9Z4Y8R/${CLOUD_STORAGE_KEY}`;
 
 const App: React.FC = () => {
@@ -82,7 +82,8 @@ const App: React.FC = () => {
   }, []);
 
   const handleSendMessage = async (text: string, file?: { data: string; mimeType: string }) => {
-    if (isLoading) return;
+    if (isLoading || (!text.trim() && !file)) return;
+    
     setRuntimeError(null);
     setIsLoading(true);
 
@@ -96,11 +97,11 @@ const App: React.FC = () => {
 
     let targetSessionId = currentSessionId || timestamp.toString();
     
-    // Get correct history snapshot for the API
-    const sessionToUpdate = sessions.find(s => s.id === targetSessionId);
-    const historyForApi = sessionToUpdate ? sessionToUpdate.messages : [];
+    // Snapshot of history for the API call to ensure we have the full context
+    const existingSession = sessions.find(s => s.id === targetSessionId);
+    const apiHistory = existingSession ? existingSession.messages : [];
 
-    // 1. Update session state locally with User message
+    // 1. Atomically update the UI with the user message
     setSessions(prev => {
       if (!currentSessionId) {
         setCurrentSessionId(targetSessionId);
@@ -119,29 +120,29 @@ const App: React.FC = () => {
     });
 
     try {
-      // 2. Execute Intelligence Request (Gemini 2.0 Flash)
-      const res = await geminiService.chatWithHistory(historyForApi, text, file);
-      const generatedText = res.text || "I was unable to synthesize a response at this moment.";
+      // 2. Uplink to Gemini 3 for perfect synthesis
+      const res = await geminiService.chatWithHistory(apiHistory, text, file);
+      const botText = res.text || "Intelligence analysis failed to produce a valid response.";
       
       const botMsg: ChatMessageType = { 
         id: (Date.now() + 1).toString(), 
         role: 'model', 
-        parts: [{ text: generatedText }], 
-        timestamp: Date.now(), 
+        parts: [{ text: botText }], 
+        timestamp: Date.now(),
         groundingSources: res.candidates?.[0]?.groundingMetadata?.groundingChunks 
       };
       
-      // 3. Persist and display AI response
+      // 3. Update state with Bot message and persist
       setSessions(prev => {
-        const finalSessions = prev.map(s => s.id === targetSessionId ? { ...s, messages: [...s.messages, botMsg], updatedAt: Date.now() } : s);
+        const final = prev.map(s => s.id === targetSessionId ? { ...s, messages: [...s.messages, botMsg], updatedAt: Date.now() } : s);
         if (currentUser) {
-          localStorage.setItem(`hulu_sessions_${currentUser.id}`, JSON.stringify(finalSessions));
+          localStorage.setItem(`hulu_sessions_${currentUser.id}`, JSON.stringify(final));
         }
-        return finalSessions;
+        return final;
       });
     } catch (e: any) { 
       setRuntimeError(e.message || "Intelligence Uplink Offline.");
-      console.error("API Failure:", e);
+      console.error("Critical API Error:", e);
     } finally { 
       setIsLoading(false); 
     }
@@ -196,8 +197,8 @@ const App: React.FC = () => {
             )) : (
               <div className="h-full flex flex-col items-center justify-center py-40 text-center opacity-30 select-none">
                 <div className="w-24 h-24 bg-white border border-slate-100 rounded-[44px] flex items-center justify-center mb-8 shadow-sm"><Waves size={48} className="text-slate-100 animate-pulse" /></div>
-                <h3 className="text-lg font-black uppercase tracking-[0.6em] text-slate-400 leading-tight">Gemini 2.0<br/>Flash Activated</h3>
-                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-4">Awaiting Command Input</p>
+                <h3 className="text-lg font-black uppercase tracking-[0.6em] text-slate-400 leading-tight">Gemini 3<br/>Flash Activated</h3>
+                <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-4">Safe & Secure Intelligence</p>
               </div>
             )}
             
@@ -267,7 +268,7 @@ const App: React.FC = () => {
                     }} className="w-full bg-slate-950 text-white py-5 rounded-[28px] font-black uppercase text-[11px] tracking-[0.3em] shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 mt-4"><Save size={18} /> Sync Globally</button>
                  </div>
               </div>
-              <button onClick={() => { localStorage.removeItem('hulu_current_user'); setCurrentUser(null); setIsAuthView(true); setShowProfile(false); }} className="w-full mt-10 py-5 text-red-500 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-red-50 rounded-[28px] transition-all"><LogOut size={18} /> Kill Session</button>
+              <button onClick={() => { localStorage.removeItem('hulu_current_user'); setCurrentUser(null); setIsAuthView(true); setShowProfile(false); }} className="w-full mt-10 py-5 text-red-500 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-red-50 rounded-[28px] transition-all"><LogOut size={18} /> Disconnect</button>
            </div>
         </div>
       )}
@@ -374,7 +375,7 @@ const AuthScreen: React.FC<{
             </div>
             <h2 className="text-base font-black uppercase text-slate-950 tracking-tighter leading-none mb-1">Aravind Bot</h2>
             <p className="text-[6px] text-slate-400 font-black uppercase tracking-[0.3em] leading-none">
-              {mode === 'login' ? 'Authorized Access' : 'Create Identity'}
+              {mode === 'login' ? 'Authorized Gateway' : 'Create Identity'}
             </p>
          </div>
 
@@ -386,7 +387,7 @@ const AuthScreen: React.FC<{
              </div>
              {error && <p className="text-[7px] font-black text-red-500 uppercase text-center tracking-widest">{error}</p>}
              <button type="submit" disabled={isBusy || otpValue.length < 6} className="w-full bg-slate-950 text-white py-3.5 rounded-[20px] font-black uppercase text-[9px] tracking-[0.3em] shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">
-                {isBusy ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />} Verify Node
+                {isBusy ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />} Verify Access
              </button>
              <button type="button" disabled={resendTimer > 0} onClick={() => { 
                 const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -420,7 +421,7 @@ const AuthScreen: React.FC<{
                  </div>
               </div>
               <div className="space-y-1">
-                 <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Passkey</label>
+                 <label className="text-[6px] font-black uppercase text-slate-400 tracking-widest ml-3">Security Key</label>
                  <div className="relative">
                     <Fingerprint size={10} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input type={showPass ? "text" : "password"} placeholder="••••" className="w-full bg-slate-50 border border-slate-100 rounded-[14px] py-2 pl-8 pr-8 text-[9px] font-bold outline-none focus:bg-white focus:border-slate-950 shadow-sm" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />

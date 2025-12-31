@@ -2,10 +2,11 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import { ChatMessage } from "../types";
 
-const MASTER_PROMPT = `You are "Aravind's bot", an elite AI assistant. 
-You provide professional, accurate, and concise responses. 
-Always use clean Markdown formatting. 
-Respond as a high-tier intelligence hub designed for business efficiency.`;
+const MASTER_PROMPT = `You are "Aravind's bot", an elite AI assistant powered by Gemini 3. 
+Your goal is to provide fast, flawless, and professional responses. 
+Use advanced reasoning to ensure accuracy. 
+Format output with clean, readable Markdown. 
+Maintain a helpful and sophisticated persona.`;
 
 export const geminiService = {
   async chatWithHistory(
@@ -14,23 +15,24 @@ export const geminiService = {
     media?: { data: string; mimeType: string },
     signal?: AbortSignal
   ) {
+    // Ensuring the API key is present from the secure environment
     if (!process.env.API_KEY) {
-      throw new Error("Intelligence Uplink Configuration Missing.");
+      throw new Error("Secure Uplink Configuration Missing.");
     }
 
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    // Map history to the format required by the SDK
+    // Map history to the format required by the SDK with strict part validation
     const contents = history.map(msg => ({
       role: msg.role === 'user' ? 'user' : 'model',
       parts: msg.parts.map(p => {
         if (p.text) return { text: p.text };
-        if (p.inlineData) return { inlineData: p.inlineData };
+        if (p.inlineData) return { inlineData: { data: p.inlineData.data, mimeType: p.inlineData.mimeType } };
         return { text: '' };
       })
     })).filter(c => c.parts.length > 0);
 
-    // Add current user message
+    // Prepare current turn
     const currentParts: any[] = [{ text: newMessage }];
     if (media) {
       currentParts.push({
@@ -41,26 +43,29 @@ export const geminiService = {
     contents.push({ role: 'user', parts: currentParts });
 
     try {
+      // Using gemini-3-flash-preview for the "perfect" balance of speed and intelligence
       const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-3-flash-preview',
         contents: contents as any,
         config: {
           systemInstruction: MASTER_PROMPT,
-          temperature: 0.7,
+          temperature: 0.75,
           topP: 0.95,
+          topK: 40,
         }
       });
       
       if (signal?.aborted) throw new Error('AbortError');
 
-      if (!response.candidates || response.candidates.length === 0) {
-        throw new Error("Intelligence hub returned an empty response.");
+      // The .text property is the standard way to extract content from GenerateContentResponse
+      if (!response.text) {
+        throw new Error("The intelligence hub processed the request but returned no text.");
       }
 
       return response;
     } catch (error: any) {
       if (error.message === 'AbortError') throw error;
-      console.error("Gemini Critical Error:", error);
+      console.error("Intelligence Uplink Error:", error);
       throw error;
     }
   },
